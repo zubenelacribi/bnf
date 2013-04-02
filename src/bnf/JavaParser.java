@@ -1,0 +1,253 @@
+package bnf;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+import bnf.BnfDefParser.Tree;
+import bnf.BnfDefParser.Type;
+
+public class JavaParser extends Parser {
+
+	@Override
+	public void initialize() {
+		//		try {
+		//			BufferedReader inp = new BufferedReader(new FileReader("java.bnf"));
+		//			StringBuffer buff = new StringBuffer();
+		//			while (true) {
+		//				String line = inp.readLine();
+		//				if (line == null) {
+		//					break;
+		//				}
+		//				buff.append(line);
+		//				buff.append('\n');
+		//			}
+		//			inp.close();
+		//			Tree t = new BnfParser().parse("bnf", buff.toString());
+		//			for (Tree b : t.branches.get(0).branches) {
+		//				b = b.branches.get(0);
+		//				Tree def = b.branches.get(2);
+		//				def.parent = b.branches.get(0);
+		//				def.parent.parent = null;
+		//				definitions.put(def.parent.node, def);
+		//			}
+		//		} catch (IOException ex) {
+		//			throw new RuntimeException(ex);
+		//		} catch (ParseException ex) {
+		//			throw new RuntimeException(ex);
+		//		}
+
+		try {
+			BufferedReader inp = new BufferedReader(new FileReader("java.bnf"));
+			StringBuffer buff = new StringBuffer();
+			int colon = -1;
+			int lineNo = 0;
+			while (true) {
+				String line = inp.readLine();
+				lineNo++;
+				if (line == null) {
+					break;
+				}
+				line = line.trim();
+				if (line.length() == 0) {
+					continue;
+				}
+				int newColon = line.indexOf(':');
+				boolean idBeforeColon = newColon >= 0;
+				for (int i = 0; i < newColon; i++) {
+					if (!Character.isJavaIdentifierPart(line.charAt(i))) {
+						idBeforeColon = false;
+						break;
+					}
+				}
+				if (idBeforeColon) {
+					if (buff.length() > 0) {
+						putDefinition(buff.toString().trim(), colon);
+						buff.delete(0, buff.length());
+					}
+					colon = newColon;
+				}
+				buff.append(line);
+				buff.append('\n');
+			}
+			if (buff.length() > 0) {
+				putDefinition(buff.toString(), colon);
+			}
+			inp.close();
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		}
+
+		// Enter fictive definitions for StringLiteral, IntegerLiteral, CharacterLiteral, FloatingPointLiteral
+		// in order an exception not to be thrown by checkForMissingDefinitions().
+		// These definitions will be processed separately by the JavParser.
+		definitions.put("StringLiteral", null);
+		definitions.put("IntegerLiteral", null);
+		definitions.put("CharacterLiteral", null);
+		definitions.put("FloatingPointLiteral", null);
+	}
+
+	private void putDefinition(String s, int colon) {
+		String def = s.substring(0, colon);
+		Tree t = BnfDefParser.parse(s.substring(colon + 1).trim());
+		t.parent = new Tree(def, 0, def.length(), null);
+		definitions.put(def, t);
+	}
+
+	@Override
+	protected Tree extension(Tree t, String s, int begin, int end) throws ParseException {
+		// Clear whitespace.
+		while (begin < end && Character.isWhitespace(s.charAt(begin))) {
+			begin++;
+		}
+		if (begin >= end) {
+			return null;
+		}
+		if (t.node.equals("StringLiteral")) {
+			return string(t, s, begin, end);
+		} else if (t.node.equals("IntegerLiteral")) {
+			return number(t, s, begin, end);
+		} else if (t.node.equals("CharacterLiteral")) {
+			return string(t, s, begin, end);
+		} else if (t.node.equals("FloatingPointLiteral")) {
+			return number(t, s, begin, end);
+		} else {
+			return null; // Not an extension of this parser.
+		}
+	}
+
+	private Tree string(Tree t, String s, int begin, int end) throws ParseException {
+		char quote = s.charAt(begin);
+		if (t.node.equals("CharacterLiteral") && quote != '\'') {
+			return null;
+		}
+		if (t.node.equals("StringLiteral") && quote != '"') {
+			return null;
+		}
+		for (int i = begin + 1; i < end; i++) {
+			char ch = s.charAt(i);
+			if (ch == '\\') {
+				i++;
+			} else if (ch == '\n') {
+				throw new ParseException("String constant exceeds line at " + pos(i));
+			} else if (ch == quote) {
+				return new Tree(s, begin, i + 1, t);
+			}
+		}
+		return null;
+	}
+
+	private Tree number(Tree t, String s, int begin, int end) throws ParseException {
+		boolean digits = false;
+		int pos = begin;
+		if (pos < end && (s.charAt(pos) == '+' || s.charAt(pos) == '-')) {
+			pos++;
+		}
+		boolean period = false;
+		if (t.node.equals("FloatingPointLiteral") && pos < end && s.charAt(pos) == '.') {
+			pos++;
+			period = true;
+		}
+		boolean hex = false;
+		if (t.node.equals("IntegerLiteral") && pos < end - 1 && s.substring(pos, pos + 2).toLowerCase().equals("0x")) {
+			hex = true;
+			pos += 2;
+		}
+		while (pos < end && (Character.isDigit(s.charAt(pos)) || (hex && ((s.charAt(pos) >= 'a' && s.charAt(pos) <= 'f') || (s.charAt(pos) >= 'A' && s.charAt(pos) <= 'F'))))) {
+			pos++;
+			digits = true;
+		}
+		if (!period && digits && t.node.equals("FloatingPointLiteral") && pos < end && s.charAt(pos) == '.') {
+			pos++;
+			while (pos < end && Character.isDigit(s.charAt(pos))) {
+				pos++;
+			}
+		}
+		if (digits && t.node.equals("IntegerLiteral") && pos < end && Character.toLowerCase(s.charAt(pos)) == 'l') {
+			pos++;
+		}
+		if (digits && t.node.equals("FloatingPointLiteral") && pos < end && Character.toLowerCase(s.charAt(pos)) == 'e') {
+			if (pos >= end) {
+				return null;
+			}
+			pos++;
+			if (s.charAt(pos) == '+' || s.charAt(pos) == '-') {
+				pos++;
+			}
+			if (pos >= end) {
+				return null;
+			}
+			digits = false;
+			while (pos < end && Character.isDigit(s.charAt(pos))) {
+				pos++;
+				digits = true;
+			}
+		}
+		if (digits && t.node.equals("FloatingPointLiteral") && pos < end && (Character.toLowerCase(s.charAt(pos)) == 'f' || Character.toLowerCase(s.charAt(pos)) == 'd')) {
+			pos++;
+		}
+		if (digits) {
+			if (pos < end && Character.isLetter(s.charAt(pos))) {
+				return null;
+			}
+			return new Tree(s, begin, pos, t);
+		} else {
+			return null;
+		}
+	}
+	
+	Set<String> keywords;
+
+	@Override
+	protected boolean keyword(String s) {
+		if (keywords == null) {
+			keywords = new HashSet<String>();
+			for (String def : definitions.keySet()) {
+				browseTreeForKeywords(definitions.get(def));
+			}
+		}
+		return keywords.contains(s);
+	}
+
+	private void browseTreeForKeywords(Tree t) {
+		if (t == null) {
+			return;
+		}
+		if (t.type == Type.token) {
+			if (Character.isLetter(t.node.charAt(1))) {
+				keywords.add(t.node.substring(1, t.node.length() - 1));
+			}
+		}
+		for (Tree b : t.branches) {
+			browseTreeForKeywords(b);
+		}
+	}
+
+	@Override
+	protected int skipWhiteSpace(String s, int begin, int end) throws ParseException {
+		int b = begin;
+		while (true) {
+			b = super.skipWhiteSpace(s, b, end);
+			if (b < end - 2 && s.startsWith("/*", b)) {
+				int c = s.indexOf("*/", b + 1);
+				if (c < 0) {
+					throw new RuntimeException("Comment not closed in " + pos(b));
+				}
+				b = c + 2;
+			} else if (b < end - 2 && s.startsWith("//", b)) {
+				int c = s.indexOf("\n", b + 2);
+				if (c < 0) {
+					c = s.length();
+				}
+				b = c + 1;
+			}
+			if (b == begin) {
+				return begin;
+			}
+			begin = b;
+		}
+	}
+
+}
