@@ -1,3 +1,22 @@
+/*
+ * Simple BNF definition parser.
+ * Copyright (C) 2013  Zuben El Acribi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 package bnf;
 
 import java.util.ArrayList;
@@ -6,6 +25,31 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * This is a simple Backus-Naur Form parser that parses BNF definitions
+ * and builds a parse tree which provides a structured view over the
+ * parsed text. The parse tree is then supplied to Parser which then
+ * uses these definitions to parse anything described with the
+ * grammar given to this BNF parser, i.e. this is a specialized BNF
+ * definition parser while Parser is a general purpose parser that
+ * uses definitions provided in the form of parse trees by this
+ * BNF definition parser.
+ * 
+ * Every definition consists of:
+ * 1. Unique name, consisting of alphanumeric ASCII symbols.
+ * 2. Colon ':' immediately after the definition identifier.
+ * 3. Any expression that uses tokens (terminals, these are surrounded
+ *    by single quotes), identifiers (refer to BNF definitions),
+ *    round brackets (groups expressions), square brackets (optional
+ *    expressions), curly brackets (repetition of an expression 0 or
+ *    more times) and the synmbol pipe '|' that means choice.
+ * 
+ * Expressions are choice of expressions or sequences of groups,
+ * optionals, repetitions, tokens and identifiers.
+ * 
+ * @author Zuben El Acribi
+ *
+ */
 public class BnfDefParser {
 
 	public enum Type { token, identifier, sequence, choice, token_keyword, identifier_keyword, new_line_keyword, optional, repetition }

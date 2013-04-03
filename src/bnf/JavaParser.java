@@ -1,3 +1,22 @@
+/*
+ * Java parser based on the BNF definition parser.
+ * Copyright (C) 2013  Zuben El Acribi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 package bnf;
 
 import java.io.BufferedReader;
@@ -9,6 +28,13 @@ import java.util.Set;
 import bnf.BnfDefParser.Tree;
 import bnf.BnfDefParser.Type;
 
+/**
+ * This is a Java parser based on BNF definition parser which uses
+ * Java BNF definitions provided in java.bnf. These definitions can
+ * be found at http://docs.oracle.com/javase/specs/jls/se7/jls7.pdf.
+ * 
+ * @author Zuben El Acribi
+ */
 public class JavaParser extends Parser {
 
 	@Override
