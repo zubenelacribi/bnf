@@ -23,7 +23,7 @@ import java.util.ArrayList;
 
 import codegen.Annotations.Type;
 
-import bnf.BnfDefParser.Tree;
+import bnf.Tree;
 import bnf.ParseTree;
 
 public class DebugCodeInserter {

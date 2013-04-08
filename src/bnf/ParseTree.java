@@ -19,13 +19,30 @@
 
 package bnf;
 
-import bnf.BnfDefParser.Tree;
-
+/**
+ * 
+ * Extends Tree by adding the path to the file which has been parsed.
+ * 
+ * @author Zuben El Acribi
+ *
+ */
 public class ParseTree {
 
+	/**
+	 * A parse tree obtained by Parser.
+	 */
 	public Tree tree;
+	
+	/**
+	 * The path to the file which has been parsed.
+	 */
 	public String filename;
 	
+	/**
+	 * Constructs a parse tree.
+	 * @param filename the path to the file which has been parsed.
+	 * @param tree the parse tree obtained by a Parser.
+	 */
 	public ParseTree(String filename, Tree tree) {
 		this.filename = filename;
 		this.tree = tree;

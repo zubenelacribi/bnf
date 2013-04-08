@@ -25,9 +25,6 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import bnf.BnfDefParser.Tree;
-import bnf.BnfDefParser.Type;
-
 /**
  * This is a Java parser based on BNF definition parser which uses
  * Java BNF definitions provided in java.bnf. These definitions can
@@ -241,7 +238,7 @@ public class JavaParser extends Parser {
 		if (t == null) {
 			return;
 		}
-		if (t.type == Type.token) {
+		if (t.type == NodeType.token) {
 			if (Character.isLetter(t.node.charAt(1))) {
 				keywords.add(t.node.substring(1, t.node.length() - 1));
 			}

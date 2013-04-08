@@ -24,7 +24,7 @@ import java.io.FileWriter;
 import java.io.PrintWriter;
 
 import bnf.JavaParser;
-import bnf.BnfDefParser.Tree;
+import bnf.Tree;
 
 import util.FileUtil;
 

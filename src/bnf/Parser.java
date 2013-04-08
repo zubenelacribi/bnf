@@ -26,9 +26,6 @@ import java.util.Set;
 
 import util.FileUtil;
 
-import bnf.BnfDefParser.Tree;
-import bnf.BnfDefParser.Type;
-
 public abstract class Parser {
 
 	public static class ParseException extends Exception {
@@ -109,12 +106,12 @@ public abstract class Parser {
 
 	private Set<String> checkTreeForMissingDefinitions(Tree t) {
 		Set<String> missing = new HashSet<String>();
-		if (t.type == Type.identifier) {
+		if (t.type == NodeType.identifier) {
 			if (!definitions.containsKey(t.node)) {
 				missing.add(t.node);
 			}
-		} else if (t.type == Type.choice || t.type == Type.sequence ||
-				t.type == Type.optional || t.type == Type.repetition) {
+		} else if (t.type == NodeType.choice || t.type == NodeType.sequence ||
+				t.type == NodeType.optional || t.type == NodeType.repetition) {
 			for (Tree b : t.branches) {
 				if (b != null) {
 					missing.addAll(checkTreeForMissingDefinitions(b));
@@ -191,7 +188,7 @@ public abstract class Parser {
 		stack.add(st);
 
 		try {
-			if (t.type == Type.token_keyword) {
+			if (t.type == NodeType.token_keyword) {
 				begin = skipWhiteSpace(s, begin, end);
 				if (begin >= end) {
 					throw new ParseException("begin(" + begin + ") > end(" + end + ")");
@@ -210,7 +207,7 @@ public abstract class Parser {
 				}
 				throw new ParseException("Closing single quote expected at" + pos(end - 1));
 
-			} else if (t.type == Type.identifier_keyword) {
+			} else if (t.type == NodeType.identifier_keyword) {
 
 				begin = skipWhiteSpace(s, begin, end);
 				if (begin >= end) {
@@ -232,7 +229,7 @@ public abstract class Parser {
 				}
 				return new Tree(s, begin, end, t);
 
-			} else if (t.type == Type.new_line_keyword) {
+			} else if (t.type == NodeType.new_line_keyword) {
 				if (begin >= end) {
 					throw new ParseException("begin(" + begin + ") > end(" + end + ")");
 				}
@@ -243,7 +240,7 @@ public abstract class Parser {
 					throw new ParseException("New line expected at" + pos(begin));
 				}
 
-			} else if (t.type == Type.token) {
+			} else if (t.type == NodeType.token) {
 
 				begin = skipWhiteSpace(s, begin, end);
 				if (begin >= end) {
@@ -267,7 +264,7 @@ public abstract class Parser {
 				}
 				throw new ParseException("Token '" + token + "' expected at" + pos(begin));
 
-			} else if (t.type == Type.identifier) {
+			} else if (t.type == NodeType.identifier) {
 
 				Tree def = definitions.get(t.node);
 				if (def == null) {
@@ -284,9 +281,9 @@ public abstract class Parser {
 				}
 				return parse(def, s, begin, end);
 
-			} else if (t.type == Type.sequence) {
+			} else if (t.type == NodeType.sequence) {
 
-				Tree res = new Tree(Type.sequence, t);
+				Tree res = new Tree(NodeType.sequence, t);
 				for (Tree b : t.branches) {
 					Tree u = parse(b, s, begin, end);
 					begin = u.end;
@@ -294,9 +291,9 @@ public abstract class Parser {
 				}
 				return res;
 
-			} else if (t.type == Type.choice) {
+			} else if (t.type == NodeType.choice) {
 
-				Tree res = new Tree(Type.choice, t);
+				Tree res = new Tree(NodeType.choice, t);
 				StringBuffer accumulatedError = new StringBuffer();
 				for (Tree b : t.branches) {
 					try {
@@ -311,7 +308,7 @@ public abstract class Parser {
 				}
 				throw new ParseException(accumulatedError.toString());
 
-			} else if (t.type == Type.optional) {
+			} else if (t.type == NodeType.optional) {
 
 				try {
 					return parse(t.branches.get(0), s, begin, end);
@@ -319,10 +316,10 @@ public abstract class Parser {
 					return new Tree(s, begin, begin, t);
 				}
 
-			} else if (t.type == Type.repetition) {
+			} else if (t.type == NodeType.repetition) {
 
 				Tree res = new Tree(s, begin, begin, t);
-				res.type = Type.repetition;
+				res.type = NodeType.repetition;
 				while (true) {
 					try {
 						Tree u = parse(t.branches.get(0), s, begin, end);
