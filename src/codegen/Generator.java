@@ -64,7 +64,17 @@ public abstract class Generator {
 	 * @return 'true' if the file is not to be copied / the directory is not to be followed.
 	 */
 	public boolean refuse(File f) {
-		return f.isDirectory() && (f.getName().equals("bin") || f.getName().equals("build"));
+		return f.isDirectory() && (f.getName().equals("bin") || f.getName().equals("build") || f.getName().startsWith("."));
+	}
+
+// ------------------------------------------------------------------------------------------------
+// Constructor.
+// ------------------------------------------------------------------------------------------------
+
+	public Generator() {
+		long start = System.currentTimeMillis();
+		copyProjectWithDebugCode();
+		System.out.println("Job done in " + (System.currentTimeMillis() - start) + " ms.");
 	}
 	
 // ------------------------------------------------------------------------------------------------
@@ -72,7 +82,8 @@ public abstract class Generator {
 // ------------------------------------------------------------------------------------------------
 	
 	public void copyProjectWithDebugCode() {
-		visit(getPath());
+		visit(getPath(), false);
+		visit(getPath(), true);
 		getAnnotations().shutdown();
 	}
 
@@ -81,6 +92,12 @@ public abstract class Generator {
 // ------------------------------------------------------------------------------------------------
 	
 	private Annotations ann;
+	private int filesToTransform;
+	private int currentFileToTransform;
+	private int filesToCopy;
+	private int currentFileToCopy;
+	private long bytesToCopy;
+	private long copiedBytes;
 	
 	private Annotations getAnnotations() {
 		if (ann == null) {
@@ -89,7 +106,7 @@ public abstract class Generator {
 		return ann;
 	}
 	
-	private void visit(File dir) {
+	private void visit(File dir, boolean doJob) {
 		if (!dir.exists()) {
 			throw new RuntimeException("Path " + dir.getAbsolutePath() + " does not exist");
 		}
@@ -99,34 +116,50 @@ public abstract class Generator {
 		for (File entry: dir.listFiles()) {
 			if (entry.isDirectory()) {
 				if (accept(entry) || !refuse(entry)) {
-					visit(entry);
+					visit(entry, doJob);
 				}
 			} else if (entry.isFile() && !entry.isHidden()) {
 				if (accept(entry)) {
-					transform(entry);
+					transform(entry, doJob);
 				} else if (!refuse(entry)) {
-					copyFile(entry);
+					copyFile(entry, doJob);
 				}
 			}
 		}
 	}
 	
-	private void transform(File f) {
+	private void transform(File f, boolean doJob) {
+		
+		if (!doJob) {
+			filesToTransform++;
+			return;
+		}
+		
 		try {
-			Tree t = new DebugCodeInserter(new JavaParser().parse("CompilationUnit", f), ann).run().getParseTree().tree;
+			System.out.print("Transforming file " + f.getAbsolutePath() + "(" + (++currentFileToTransform) + "/" + filesToTransform + ")... ");
+			Tree t = new DebugCodeInserter(new JavaParser().parse("CompilationUnit", f), getAnnotations()).run().getParseTree().tree;
 			PrintWriter out = new PrintWriter(new FileWriter(getTarget(f, getTargetPath())));
 			out.print(t);
 			out.close();
 			File target = getTarget(f, getSourceCache());
 			FileUtil.copyFile(f, target);
 			serializeTree(t, new File(target.getParentFile(), target.getName() + ".tree"));
+			System.out.println("done.");
 		} catch (Exception ex) {
 			throw new RuntimeException(ex);
 		}
 	}
 	
-	private void copyFile(File f) {
+	private void copyFile(File f, boolean doJob) {
+		if (!doJob) {
+			filesToCopy++;
+			bytesToCopy += f.length();
+			return;
+		}
+		System.out.print("Copying file " + f.getAbsolutePath() + "(" + (++currentFileToCopy) + "/" + filesToCopy + ", bytes " + copiedBytes + "/" + bytesToCopy + ")... ");
 		FileUtil.copyFile(f, getTarget(f, getTargetPath()));
+		copiedBytes += f.length();
+		System.out.println("done.");
 	}
 	
 	private File getTarget(File f, File targetDir) {
