@@ -115,7 +115,7 @@ public class DebugCodeInserter {
 					buff.append(");");
 				}
 				tree.suffix = buff.toString();
-			} else if (tree.branches.get(2) != null) { // [Identifier ':'] Statement
+			} else if (tree.branches.size() > 2 && tree.branches.get(2) != null) { // [Identifier ':'] Statement
 				tree = tree.branches.get(2);
 				tree.prefix = " $.$.step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l);";
 			}
