@@ -45,12 +45,13 @@ public class Annotations {
 		endscope { @Override public long getMask() { return 0x3l; } },
 		var      { @Override public long getMask() { return 0x4l; } },
 		vardecl  { @Override public long getMask() { return 0x5l; } },
+		arg      { @Override public long getMask() { return 0x6l; } },
 		;
 		
 		public abstract long getMask();
 	}
 	
-	public static final int RESERVED_BITS = 4; // The number of bits in the low part of the long representing the annotation which are reserved for annotation type.
+	public static final int RESERVED_BITS = 3; // The number of bits in the low part of the long representing the annotation which are reserved for annotation type.
 	
 	private String path;
 	private ArrayList<String> files = new ArrayList<String>();

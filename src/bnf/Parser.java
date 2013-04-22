@@ -28,16 +28,6 @@ import util.FileUtil;
 
 public abstract class Parser {
 
-	public static class ParseException extends Exception {
-
-		private static final long serialVersionUID = 1L;
-
-		public ParseException(String errorMessage) {
-			super(errorMessage);
-		}
-
-	}
-
 	private static class StackElem {
 
 		public Tree t;
@@ -133,9 +123,6 @@ public abstract class Parser {
 		calcPos(s);
 		stack = new HashSet<StackElem>();
 		Tree res = parse(t, s, 0, s.length());
-//		while (res.end < s.length() && Character.isWhitespace(s.charAt(res.end))) {
-//			res.end++;
-//		}
 		int end = skipWhiteSpace(s, res.end, s.length());
 		res.node = s.substring(res.begin, res.end);
 		stack = null;

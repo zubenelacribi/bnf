@@ -20,6 +20,7 @@
 package bnf;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
@@ -36,40 +37,12 @@ public class JavaParser extends Parser {
 
 	@Override
 	public void initialize() {
-		//		try {
-		//			BufferedReader inp = new BufferedReader(new FileReader("java.bnf"));
-		//			StringBuffer buff = new StringBuffer();
-		//			while (true) {
-		//				String line = inp.readLine();
-		//				if (line == null) {
-		//					break;
-		//				}
-		//				buff.append(line);
-		//				buff.append('\n');
-		//			}
-		//			inp.close();
-		//			Tree t = new BnfParser().parse("bnf", buff.toString());
-		//			for (Tree b : t.branches.get(0).branches) {
-		//				b = b.branches.get(0);
-		//				Tree def = b.branches.get(2);
-		//				def.parent = b.branches.get(0);
-		//				def.parent.parent = null;
-		//				definitions.put(def.parent.node, def);
-		//			}
-		//		} catch (IOException ex) {
-		//			throw new RuntimeException(ex);
-		//		} catch (ParseException ex) {
-		//			throw new RuntimeException(ex);
-		//		}
-
 		try {
 			BufferedReader inp = new BufferedReader(new FileReader("java.bnf"));
 			StringBuffer buff = new StringBuffer();
 			int colon = -1;
-			int lineNo = 0;
 			while (true) {
 				String line = inp.readLine();
-				lineNo++;
 				if (line == null) {
 					break;
 				}
@@ -110,6 +83,14 @@ public class JavaParser extends Parser {
 		definitions.put("IntegerLiteral", null);
 		definitions.put("CharacterLiteral", null);
 		definitions.put("FloatingPointLiteral", null);
+	}
+	
+	public ParseTree parse(String path) throws ParseException {
+		return parse(new File(path));
+	}
+	
+	public ParseTree parse(File f) throws ParseException {
+		return parse("CompilationUnit", f);
 	}
 
 	private void putDefinition(String s, int colon) {
