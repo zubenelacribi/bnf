@@ -35,8 +35,17 @@ import java.util.Set;
  */
 public class JavaParser extends Parser {
 
+	/**
+	 * Constructs a Java Parser.
+	 * @throws ParserInitializationException if there is a syntax error
+	 *   in the BNF definition or an IOException occurs.
+	 */
+	public JavaParser() throws ParserInitializationException {
+		super();
+	}
+	
 	@Override
-	public void initialize() {
+	public void initialize() throws ParserInitializationException {
 		try {
 			BufferedReader inp = new BufferedReader(new FileReader("java.bnf"));
 			StringBuffer buff = new StringBuffer();
@@ -73,7 +82,9 @@ public class JavaParser extends Parser {
 			}
 			inp.close();
 		} catch (IOException ex) {
-			throw new RuntimeException(ex);
+			throw new ParserInitializationException(ex);
+		} catch (ParseException ex) {
+			throw new ParserInitializationException(ex);
 		}
 
 		// Enter fictive definitions for StringLiteral, IntegerLiteral, CharacterLiteral, FloatingPointLiteral
@@ -93,7 +104,7 @@ public class JavaParser extends Parser {
 		return parse("CompilationUnit", f);
 	}
 
-	private void putDefinition(String s, int colon) {
+	private void putDefinition(String s, int colon) throws ParseException {
 		String def = s.substring(0, colon);
 		Tree t = BnfDefParser.parse(s.substring(colon + 1).trim());
 		t.parent = new Tree(def, 0, def.length(), null);

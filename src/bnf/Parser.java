@@ -61,12 +61,12 @@ public abstract class Parser {
 
 	HashSet<StackElem> stack;
 
-	public Parser() {
+	public Parser() throws ParserInitializationException {
 		initialize();
 		checkForMissingDefinitions();
 	}
 
-	public abstract void initialize();
+	public abstract void initialize() throws ParserInitializationException;
 	
 	protected abstract boolean keyword(String s);
 

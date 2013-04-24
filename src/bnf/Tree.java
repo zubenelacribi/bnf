@@ -135,21 +135,36 @@ public class Tree {
 	 * because in this case we know exactly the beginning and the end
 	 * of the parsed substring.<br/>
 	 * This node's type is inferred from the annotation if any.<br/>
-	 * If the annotation is null the this node's type is inferred
-	 * from the specified substring.
+	 * If the annotation is null (we parse a BNF definition)
+	 * the this node's type is inferred
+	 * from the specified substring:<br/><br/>
+	 * 1. If this node is the empty string then it is a token (an empty
+	 * string may appear when evaluating an optional which hasn't matched
+	 * a value).<br/>
+	 * 2. If this node is a string surrounded by quotes then it is a token.<br/>
+	 * 3. If there is an annotation (i.e. we parse a language described
+	 * with BNF) and its type is 'token' or 'new line' then this node is a token.<br/>
+	 * 4. If this node is a keyword then:<br/>
+	 * 4.1. TOKEN has type of 'token_keyword'<br/>
+	 * 4.2. IDENTIFIER has type of 'identifier_keyword'<br/>
+	 * 4.3. NEW_LINE has type of 'new_line_keyword'<br/>
+	 * 5. If the node's string contains identifier symbols only then
+	 * it is an identifier.<br/>
 	 * @param s the whole string over which a parse tree is being built.
 	 * @param begin the beginning of the recognized substring.
 	 * @param end the end of the recognized substring.
 	 * @param annotation the definition of this node.
+	 * @throws InvalidIdentifierException if the node's type is inferred to be 'identifier'
+	 *   but contains non-identifier symbols.
 	 */
-	public Tree(String s, int begin, int end, Tree annotation) {
+	public Tree(String s, int begin, int end, Tree annotation) throws InvalidIdentifierException {
 		this.s = s;
 		this.begin = begin;
 		this.end = end;
 		this.node = s.substring(begin, end);
 		this.def = annotation;
 
-		if (node.length() == 0 || node.startsWith("'") ||
+		if (node.length() == 0 || (node.startsWith("'") && node.endsWith("'")) ||
 				(annotation != null && (annotation.type == NodeType.token || annotation.type == NodeType.new_line_keyword))) {
 			type = NodeType.token; // This corresponds to a keyword or a special symbol like arithmetic symbols or brackets.
 		} else if (node.equals("TOKEN")) {
@@ -161,6 +176,12 @@ public class Tree {
 		} else {
 			type = NodeType.identifier; // This node is a defined as terminal but will actually refer to a BNF definition.
 			// This node should appear when parsing a BNF definition only.
+			// Check whether this is an identifier.
+			for (int i = 0; i < node.length(); i++) {
+				if (!Character.isJavaIdentifierPart(node.charAt(i))) {
+					throw new InvalidIdentifierException("Expression in [" + begin + ", " + (end - 1) + "]: '" + node + "', is not an identifier");
+				}
+			}
 		}
 	}
 
