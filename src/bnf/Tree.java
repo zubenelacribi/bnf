@@ -165,6 +165,7 @@ public class Tree {
 		this.def = annotation;
 
 		if (node.length() == 0 || (node.startsWith("'") && node.endsWith("'")) ||
+				(node.startsWith("\"") && node.endsWith("\"")) ||
 				(annotation != null && (annotation.type == NodeType.token || annotation.type == NodeType.new_line_keyword))) {
 			type = NodeType.token; // This corresponds to a keyword or a special symbol like arithmetic symbols or brackets.
 		} else if (node.equals("TOKEN")) {

@@ -113,10 +113,6 @@ public class JavaParser extends Parser {
 
 	@Override
 	protected Tree extension(Tree t, String s, int begin, int end) throws ParseException {
-		// Clear whitespace.
-		while (begin < end && Character.isWhitespace(s.charAt(begin))) {
-			begin++;
-		}
 		if (begin >= end) {
 			return null;
 		}
