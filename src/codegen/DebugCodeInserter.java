@@ -221,7 +221,7 @@ public class DebugCodeInserter {
 		StringBuffer buff = new StringBuffer();
 		buff.append("{ $.$.scope(" + ann.annotation(Type.scope, t.begin, t.end) + "l); ");
 		for (int i = 0; i < params.length; i++) {
-			buff.append("$.$.var(" + ann.annotation(Type.vardecl, t.begin, t.end) + "l, \"");
+			buff.append("$.$.var(" + ann.annotation(Type.arg, t.begin, t.end) + "l, \"");
 			buff.append(params[i]);
 			buff.append("\", ");
 			buff.append(params[i]);

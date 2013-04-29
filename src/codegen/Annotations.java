@@ -147,19 +147,22 @@ public class Annotations {
 		if (shutdown) {
 			return;
 		}
-		if (pos > 0) {
-			try {
-				shutdown = true;
-				out.write(buffer, 0, pos);
-				out.close();
-				PrintWriter pr = new PrintWriter(new File(new File(path), "files.txt"));
-				for (String s: files) {
-					pr.println(s);
+		try {
+			if (pos > 0) {
+				try {
+					out.write(buffer, 0, pos);
+					out.close();
+					PrintWriter pr = new PrintWriter(new File(new File(path), "files.txt"));
+					for (String s: files) {
+						pr.println(s);
+					}
+					pr.close();
+				} catch (IOException ex) {
+					throw new RuntimeException(ex);
 				}
-				pr.close();
-			} catch (IOException ex) {
-				throw new RuntimeException(ex);
 			}
+		} finally {
+			shutdown = true;
 		}
 	}
 	
