@@ -104,20 +104,24 @@ public class DebugCodeInserter {
 				tree.prefix = " $.$.step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, $_$); ";
 				Tree t = tree.branches.get(2); // VariableDeclarators: VariableDeclarator { ',' VariableDeclarator }
 				StringBuffer buff = new StringBuffer();
-				String var = t.branches.get(0).branches.get(0).node;
-				buff.append(" $.$.$(" + ann.annotation(Type.vardecl, tree.begin, tree.end) + "l, $_$, \"");
-				buff.append(var);
-				buff.append("\", ");
-				buff.append(var);
-				buff.append(");");
-				t = t.branches.get(1);
-				for (Tree b: t.branches) {
-					var = b.branches.get(1).branches.get(0).node;
-					buff.append(" $.$.$(" + ann.annotation(Type.vardecl, t.begin, t.end) + "l, $_$, \"");
+				String var = t.branches.get(0).branches.get(0).node; // VariableDeclarator: Identifier VariableDeclaratorRest
+				if (t.branches.get(0).branches.get(1).branches.get(1).node.length() > 0) { // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
+					buff.append(" $.$.$(" + ann.annotation(Type.vardecl, tree.begin, tree.end) + "l, $_$, \"");
 					buff.append(var);
 					buff.append("\", ");
 					buff.append(var);
 					buff.append(");");
+				}
+				t = t.branches.get(1);
+				for (Tree b: t.branches) {
+					var = b.branches.get(1).branches.get(0).node; // VariableDeclarator: Identifier VariableDeclaratorRest
+					if (t.branches.get(0).branches.get(1).branches.get(1).node.length() > 0) { // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
+						buff.append(" $.$.$(" + ann.annotation(Type.vardecl, t.begin, t.end) + "l, $_$, \"");
+						buff.append(var);
+						buff.append("\", ");
+						buff.append(var);
+						buff.append(");");
+					}
 				}
 				tree.suffix = buff.toString();
 			} else if (tree.branches.size() > 2 && tree.branches.get(2) != null) { // [Identifier ':'] Statement
@@ -232,25 +236,24 @@ public class DebugCodeInserter {
 	}
 	
 	private boolean constructorCall(Tree t) {
-		Tree u = t;
-		if (u.branches.size() > 1 && u.branches.get(1).def.node.equals("{ BlockStatement }") && u.branches.get(1).branches.size() > 0) {
-			u = u.branches.get(1).branches.get(0); // LocalVariableDeclarationStatement | ClassOrInterfaceDeclaration | [Identifier ':'] Statement
+		if (t.branches.size() > 1 && t.branches.get(1).def.node.equals("{ BlockStatement }") && t.branches.get(1).branches.size() > 0) {
+			t = t.branches.get(1).branches.get(0); // LocalVariableDeclarationStatement | ClassOrInterfaceDeclaration | [Identifier ':'] Statement
 		}
-		if (u.def.node.equals("LocalVariableDeclarationStatement | ClassOrInterfaceDeclaration | [Identifier ':'] Statement") && u.branches.size() > 2 && u.branches.get(2) != null) {
-			u = u.branches.get(2);
+		if (t.def.node.equals("LocalVariableDeclarationStatement | ClassOrInterfaceDeclaration | [Identifier ':'] Statement") && t.branches.size() > 2 && t.branches.get(2) != null) {
+			t = t.branches.get(2);
 		}
-		if (u.def.node.equals("[Identifier ':'] Statement")) {
-			u = u.branches.get(1);
+		if (t.def.node.equals("[Identifier ':'] Statement")) {
+			t = t.branches.get(1);
 		}
-		if (u.branches.size() > 3 && u.branches.get(3) != null) {
-			u = u.branches.get(3).branches.get(0); // StatementExpression ';' --> Expression1 [ AssignmentOperator Expression ]
-			u = u.branches.get(0).branches.get(0).branches.get(0);
-			if (u.branches.size() > 2 && u.branches.get(2) != null) {
-				u = u.branches.get(2); // Primary { Selector } { PostfixOp }
-				if (u.branches.get(1).node.length() == 0 && u.branches.get(2).node.length() == 0) {
-					u = u.branches.get(0);
-					if ((u.branches.size() > 2 && u.branches.get(2) != null) || // 'this' [Arguments]
-							(u.branches.size() > 3 && u.branches.get(3) != null)) { // 'super' SuperSuffix
+		if (t.branches.size() > 3 && t.branches.get(3) != null) {
+			t = t.branches.get(3).branches.get(0); // StatementExpression ';' --> Expression1 [ AssignmentOperator Expression ]
+			t = t.branches.get(0).branches.get(0).branches.get(0);
+			if (t.branches.size() > 2 && t.branches.get(2) != null) {
+				t = t.branches.get(2); // Primary { Selector } { PostfixOp }
+				if (t.branches.get(1).node.length() == 0 && t.branches.get(2).node.length() == 0) {
+					t = t.branches.get(0);
+					if ((t.branches.size() > 2 && t.branches.get(2) != null) || // 'this' [Arguments]
+							(t.branches.size() > 3 && t.branches.get(3) != null)) { // 'super' SuperSuffix
 						return true;
 					}
 				}
