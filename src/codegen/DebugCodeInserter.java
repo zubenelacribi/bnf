@@ -291,6 +291,13 @@ public class DebugCodeInserter {
 				t.parent.parent.parent.parent.parent.def.node.equals("{Modifier} MemberDecl")) {
 			return findStatic(t.parent.parent.parent.parent.parent.branches.get(0));
 		}
+		if (t.parent != null && t.parent.parent != null &&
+				t.parent.parent.def.node.equals("(Type | 'void') Identifier MethodDeclaratorRest") &&
+				t.parent.parent.parent != null && t.parent.parent.parent.parent != null &&
+				t.parent.parent.parent.parent.def.parent.node.equals("GenericMethodOrConstructorDecl") &&
+				t.parent.parent.parent.parent.parent != null && t.parent.parent.parent.parent.parent.parent != null) {
+			return findStatic(t.parent.parent.parent.parent.parent.parent.branches.get(0));
+		}
 		return false;
 	}
 	
