@@ -46,12 +46,16 @@ public class Annotations {
 		var      { @Override public long getMask() { return 0x4l; } },
 		vardecl  { @Override public long getMask() { return 0x5l; } },
 		arg      { @Override public long getMask() { return 0x6l; } },
+		obj      { @Override public long getMask() { return 0x7l; } },
+		field    { @Override public long getMask() { return 0x8l; } },
+		arr      { @Override public long getMask() { return 0x9l; } },
+		index    { @Override public long getMask() { return 0x10l;} },
 		;
 		
 		public abstract long getMask();
 	}
 	
-	public static final int RESERVED_BITS = 3; // The number of bits in the low part of the long representing the annotation which are reserved for annotation type.
+	public static final int RESERVED_BITS = 4; // The number of bits in the low part of the long representing the annotation which are reserved for annotation type.
 	
 	private String path;
 	private ArrayList<String> files = new ArrayList<String>();

@@ -71,7 +71,7 @@ public class DebugCodeInserter {
 				boolean typeField = typeField(tree);
 				String context = typeField ? "-1l, " : "$_$, ";
 				ArrayList<String> assignmentVars = new ArrayList<String>();
-				if (traceableExpression(tree, assignmentVars)) {
+				if (traceableExpression(tree, assignmentVars) && tree.prefix == null) {
 					tree.prefix = "$.$.$(" + ann.annotation(Type.expr, tree.begin, tree.end) + "l, " + context + "\"\", ";
 					tree.suffix = ")";
 				}
@@ -191,14 +191,14 @@ public class DebugCodeInserter {
 					b.prefix = "public";
 					b.hide = true;
 					visibility = true;
-					break;
 				} else if (b.node.equals("public")) {
 					visibility = true;
-					break;
+				} else if (b.node.equals("final")) { // Remove 'final' from type members.
+					b.hide = true;
 				}
 			}
 			if (!visibility) {
-				tree.prefix = "public ";
+				tree.parent.prefix = "public ";
 				if (tree.begin == tree.end) {
 					Tree t = tree.parent;
 					int i = 0;
@@ -311,7 +311,7 @@ public class DebugCodeInserter {
 				t = t.branches.get(2); // FormalParameterDeclsRest: VariableDeclaratorId [ ',' FormalParameterDecls ] | '...' VariableDeclaratorId
 				if (t.branches.get(0) != null) {
 					t = t.branches.get(0);
-					l.add(t.branches.get(0).node);
+					l.add(t.branches.get(0).branches.get(0).node);
 					if (t.branches.get(1).node.length() > 0) {
 						t = t.branches.get(1);
 					} else {
@@ -396,12 +396,50 @@ public class DebugCodeInserter {
 	}
 
 	private void inspectField(Tree t) {
-
+		Tree original = t;
+		if (t.def.node.equals("Expression2 [ Expression1Rest ]")) {
+			t = t.branches.get(0).branches.get(0);
+			if (t.branches.size() > 2 && t.branches.get(2) != null) {
+				t = t.branches.get(2); // Primary { Selector } { PostfixOp }
+				if (t.branches.get(1).node.length() > 0 && t.branches.get(2).node.length() == 0) {
+					Tree u = t.branches.get(1); // { Selector }
+					Tree last = u.branches.get(u.branches.size() - 1);
+					Tree prev = t.branches.get(0);
+					if (u.branches.size() > 1) {
+						prev = u.branches.get(u.branches.size() - 2);
+					}
+					if (last.branches.get(0) != null) {
+						last = last.branches.get(0); // '.' Identifier [Arguments]
+						if (last.branches.get(2).node.length() == 0) {
+							t.prefix = "$.$.$(" + ann.annotation(Type.obj, t.begin, prev.end) + "l, $_$, \"\", ";
+							prev.suffix = ")";
+							String fieldName = last.branches.get(1).node;
+							if (original.parent.def.node.equals("Expression1 [ AssignmentOperator Expression ]") &&
+									original.parent.branches.get(1).node.length() > 0) {
+								Tree v = original.parent.branches.get(1).branches.get(1);
+								String prefix = "$.$.$(" + ann.annotation(Type.field, v.begin, v.end) + "l, $_$, \"" + fieldName + "\", ";
+								if (v.prefix == null) {
+									v.prefix = prefix;
+									v.suffix = ")";
+								} else {
+									v.prefix += prefix;
+									v.suffix += ")";
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	private boolean typeField(Tree t) {
 		Tree u = t.parent;
-		for (int count = 0; u != null && count < 4; u = u.parent, count++);
+		for (int count = 0; u != null && count < 4; u = u.parent, count++) {
+			if (u != null && u.def.node.equals("ConstantDeclaratorsRest ';'")) {
+				return true;
+			}
+		}
 		if (u != null && u.def.node.equals("FieldDeclaratorsRest ';'")) {
 			return true;
 		}
