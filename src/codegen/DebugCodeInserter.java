@@ -65,6 +65,10 @@ public class DebugCodeInserter {
 
 			block(tree.branches.get(2), tree.branches.get(0));
 			
+		} else if (tree.def.node.equals("['static'] Block")) { // Initializer.
+			
+			block(tree.branches.get(1), tree.branches.get(1));
+			
 		} else if (tree.def.parent.node.equals("Expression")) {
 
 			if (!(tree.parent != null && tree.parent.parent != null && tree.parent.parent.def.node.equals("ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate]"))) {
@@ -301,6 +305,9 @@ public class DebugCodeInserter {
 				t.parent.parent.parent.parent.parent != null && t.parent.parent.parent.parent.parent.parent != null) {
 			return findStatic(t.parent.parent.parent.parent.parent.parent.branches.get(0));
 		}
+		if (t.parent != null && t.parent.def.node.equals("['static'] Block")) {
+			return t.parent.branches.get(0).node.length() != 0;
+		}
 		return false;
 	}
 	
@@ -314,6 +321,9 @@ public class DebugCodeInserter {
 	}
 	
 	private String[] getListOfFormalParameters(Tree t) { // FormalParameters: '(' [FormalParameterDecls] ')'
+		if (!t.def.node.equals("'(' [FormalParameterDecls] ')'")) {
+			return new String[0];
+		}
 		ArrayList<String> l = new ArrayList<String>();
 		if (t.branches.get(1).node.length() > 0) {
 			while (true) {
