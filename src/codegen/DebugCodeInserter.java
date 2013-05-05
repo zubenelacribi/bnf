@@ -191,6 +191,10 @@ public class DebugCodeInserter {
 			t.suffix = " } ";
 			scope(tree);
 			
+		} else if (tree.def.parent.node.equals("SwitchLabel")) {
+			
+			return; // Do not instrument case labels.
+			
 		} else if (tree.def.node.equals("{Modifier}")) {
 			
 			boolean visibility = false;
