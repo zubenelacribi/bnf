@@ -358,6 +358,11 @@ public class DebugCodeInserter {
 	}
 
 	private boolean traceableExpression(Tree t, ArrayList<String> assignmentVars) { // Expression: Expression1 [ AssignmentOperator Expression ]
+		// Check whether this is a block statement. Block statements shouldn't be traced.
+		Tree v = t;
+		for (int count = 0; v.parent != null && count < 4; v = v.parent, count++);
+		boolean blockStatement = v.def.parent.node.equals("BlockStatement");
+			
 		Tree original = t;
 		if (t.branches.get(1).node.length() > 0) {
 			String name = t.branches.get(0).node;
@@ -393,7 +398,7 @@ public class DebugCodeInserter {
 							u = u.branches.get(7);
 							if (u != null) { // Identifier { '.' Identifier } [IdentifierSuffix]
 								if (u.branches.size() > 2 && u.branches.get(2).node.length() > 0) {
-									return !original.parent.def.node.equals("StatementExpression ';'");
+									return !original.parent.def.node.equals("StatementExpression ';'") && !blockStatement;
 								}
 							}
 						} else if (u.branches.size() > 2 && u.branches.get(2) != null) { // 'this' [Arguments]
@@ -405,7 +410,7 @@ public class DebugCodeInserter {
 				}
 			}
 		}
-		return true;
+		return !blockStatement;
 	}
 
 	private void scope(Tree t) {
