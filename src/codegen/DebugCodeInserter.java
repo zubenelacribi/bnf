@@ -211,8 +211,10 @@ public class DebugCodeInserter {
 					visibility = true;
 				} else if (b.node.equals("public")) {
 					visibility = true;
-				} else if (b.node.equals("final")) { // Remove 'final' from type members.
-					b.hide = true;
+				} else if (b.node.equals("final")) { // Remove 'final' from instance type members without initialization.
+					if (!staticModifierPresent(tree) && fieldDeclarationWithoutInitializer(tree)) {
+						b.hide = true;
+					}
 				}
 			}
 			if (!visibility) {
@@ -477,6 +479,31 @@ public class DebugCodeInserter {
 		}
 		if (u != null && u.def.node.equals("FieldDeclaratorsRest ';'")) {
 			return true;
+		}
+		return false;
+	}
+
+	private boolean staticModifierPresent(Tree t) {
+		for (Tree b: t.branches) {
+			if (b.node.equals("static")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean fieldDeclarationWithoutInitializer(Tree t) {
+		if (t.parent.def.node.equals("{Modifier} MemberDecl")) {
+			t = t.parent.branches.get(1);
+			if (t.branches.get(0) != null) {
+				t = t.branches.get(0); // MethodOrFieldDecl: Type Identifier MethodOrFieldRest
+				t = t.branches.get(2); // MethodOrFieldRest: FieldDeclaratorsRest ';' | MethodDeclaratorRest
+				if (t.branches.get(0) != null) {
+					t = t.branches.get(0).branches.get(0); // FieldDeclaratorsRest: VariableDeclaratorRest { ',' VariableDeclarator }
+					t = t.branches.get(0); // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
+					return t.branches.get(1).node.length() == 0;
+				}
+			}
 		}
 		return false;
 	}
