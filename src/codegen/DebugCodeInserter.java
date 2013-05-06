@@ -191,11 +191,17 @@ public class DebugCodeInserter {
 			t.suffix = " } ";
 			scope(tree);
 			
-		} else if (tree.def.parent.node.equals("SwitchLabel")) {
+		} else if (tree.def.parent.node.equals("SwitchLabel")) { // case LABEL:
 			
 			return; // Do not instrument case labels.
 			
-		} else if (tree.def.node.equals("{Modifier}")) {
+		} else if (tree.def.node.equals("'return' [Expression] ';'") && tree.branches.get(1).node.length() > 0) { // return EXPRESSION;
+			
+			if (tree.branches.get(1).node.equals("Collections.emptyList()")) {
+				return;
+			}
+			
+		} else if (tree.def.node.equals("{Modifier}")) { // 'public', 'protected', 'private', 'final'
 			
 			boolean visibility = false;
 			for (Tree b: tree.branches) {
