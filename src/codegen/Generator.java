@@ -73,25 +73,22 @@ public abstract class Generator {
 	}
 
 // ------------------------------------------------------------------------------------------------
-// Constructor.
-// ------------------------------------------------------------------------------------------------
-
-	public Generator() {
-		long start = System.currentTimeMillis();
-		copyProjectWithDebugCode();
-		System.out.println("Job done in " + (System.currentTimeMillis() - start) + " ms.");
-	}
-	
-// ------------------------------------------------------------------------------------------------
 // Main method.
 // ------------------------------------------------------------------------------------------------
 	
-	public void copyProjectWithDebugCode() {
-		FileUtil.deltree(getTargetPath());
+	/**
+	 * @param cleanTargetDir deletes the target directory to startup cleanly.
+	 */
+	public void copyProjectWithDebugCode(boolean cleanTargetDir) {
+		long start = System.currentTimeMillis();
+		if (cleanTargetDir) {
+			FileUtil.deltree(getTargetPath());
+		}
 		visit(getPath(), false);
 		visit(getPath(), true);
 		getAnnotations().shutdown();
 		copyBridge();
+		System.out.println("Job done in " + (System.currentTimeMillis() - start) + " ms.");
 	}
 
 // ------------------------------------------------------------------------------------------------
@@ -180,7 +177,8 @@ public abstract class Generator {
 	}
 	
 	private void serializeTree(Tree t, File f) {
-		
+		// TODO Trees may be pre-cached in the source cache in order not to loose time when loading
+		// the file by the debugger.
 	}
 
 	private void copyBridge() {

@@ -206,9 +206,11 @@ public class DebugCodeInserter {
 			boolean visibility = false;
 			for (Tree b: tree.branches) {
 				if (b.node.equals("protected") || b.node.equals("private")) {
-					b.prefix = "public";
-					b.hide = true;
-					visibility = true;
+					if (!enumConstructor(tree)) {
+						b.prefix = "public";
+						b.hide = true;
+						visibility = true;
+					}
 				} else if (b.node.equals("public")) {
 					visibility = true;
 				} else if (b.node.equals("final")) { // Remove 'final' from instance type members without initialization.
@@ -217,7 +219,7 @@ public class DebugCodeInserter {
 					}
 				}
 			}
-			if (!visibility) {
+			if (!visibility && !inlineClassDefinition(tree) && !enumConstructor(tree)) {
 				tree.parent.prefix = "public ";
 				if (tree.begin == tree.end) {
 					Tree t = tree.parent;
@@ -506,6 +508,27 @@ public class DebugCodeInserter {
 			}
 		}
 		return false;
+	}
+
+	private boolean inlineClassDefinition(Tree t) {
+		return t.parent != null && t.parent.parent != null && t.parent.parent.parent != null &&
+				t.parent.parent.parent.def.node.equals("{ BlockStatement }");
+	}
+
+	private boolean enumConstructor(Tree t) {
+		if (t.parent != null && t.parent.def.node.equals("{Modifier} MemberDecl") &&
+				t.parent.branches.get(1).branches.size() > 2 && t.parent.branches.get(1).branches.get(2) != null &&
+						t.parent.branches.get(1).branches.get(2).def.node.equals("Identifier ConstructorDeclaratorRest")) {
+			for (int i = 0; i < 6; i++) {
+				if (t.parent == null) {
+					return false;
+				}
+				t = t.parent;
+			}
+			return t != null && t.def.parent.node.equals("EnumDeclaration");
+		} else {
+			return false;
+		}
 	}
 	
 	public ParseTree getParseTree() {
