@@ -164,9 +164,14 @@ public class Tree {
 		this.node = s.substring(begin, end);
 		this.def = annotation;
 
-		if (node.length() == 0 || (node.startsWith("'") && node.endsWith("'")) ||
+		if (node.length() == 0 ||
+				(node.startsWith("'") && node.endsWith("'")) ||
 				(node.startsWith("\"") && node.endsWith("\"")) ||
-				(annotation != null && (annotation.type == NodeType.token || annotation.type == NodeType.new_line_keyword))) {
+				(annotation != null && (annotation.type == NodeType.token || annotation.type == NodeType.new_line_keyword)) ||
+				Character.isDigit(node.charAt(0)) ||
+				(node.length() > 1 && node.charAt(0) == '.' && Character.isDefined(node.charAt(1))) ||
+				node.charAt(0) == '+' ||
+				node.charAt(0) == '-') {
 			type = NodeType.token; // This corresponds to a keyword or a special symbol like arithmetic symbols or brackets.
 		} else if (node.equals("TOKEN")) {
 			type = NodeType.token_keyword; // This node should appear when parsing a BNF definition only.
