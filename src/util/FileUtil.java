@@ -73,4 +73,18 @@ public class FileUtil {
 		}
 	}
 	
+	public static void deltree(File dir) {
+		if (!dir.exists() || !dir.isDirectory()) {
+			return;
+		}
+		for (File entry: dir.listFiles()) {
+			if (entry.isDirectory()) {
+				deltree(entry);
+			} else {
+				entry.delete();
+			}
+		}
+		dir.delete();
+	}
+	
 }

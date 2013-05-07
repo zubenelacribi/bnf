@@ -76,8 +76,8 @@ public class DebugCodeInserter {
 				String context = typeField ? "-1l, " : "$_$, ";
 				ArrayList<String> assignmentVars = new ArrayList<String>();
 				if (traceableExpression(tree, assignmentVars) && tree.prefix == null) {
-					tree.prefix = "$.$.$(" + ann.annotation(Type.expr, tree.begin, tree.end) + "l, " + context + "\"\", ";
-					tree.suffix = ")";
+//					tree.prefix = "$.$.$(" + ann.annotation(Type.expr, tree.begin, tree.end) + "l, " + context + "\"\", ";
+//					tree.suffix = ")";
 				}
 				if (assignmentVars.size() > 0) {
 					StringBuffer buff = new StringBuffer();

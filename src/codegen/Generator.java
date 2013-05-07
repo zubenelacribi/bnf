@@ -45,6 +45,11 @@ public abstract class Generator {
 	public abstract File getTargetPath();
 	
 	/**
+	 * @return the source folder where the bridge $.java logging utility is going to be copied.
+	 */
+	public abstract File getBridgeTargetPath();
+	
+	/**
 	 * @return the path where annotations and the current state of the sources will be kept.
 	 *   These sources will be used when debugging.
 	 */
@@ -82,9 +87,11 @@ public abstract class Generator {
 // ------------------------------------------------------------------------------------------------
 	
 	public void copyProjectWithDebugCode() {
+		FileUtil.deltree(getTargetPath());
 		visit(getPath(), false);
 		visit(getPath(), true);
 		getAnnotations().shutdown();
+		copyBridge();
 	}
 
 // ------------------------------------------------------------------------------------------------
@@ -145,6 +152,8 @@ public abstract class Generator {
 			FileUtil.copyFile(f, target);
 			serializeTree(t, new File(target.getParentFile(), target.getName() + ".tree"));
 			System.out.println("done.");
+		} catch (StackOverflowError ex) {
+			System.err.println("Stack overflow while parsing file " + f.getAbsolutePath());
 		} catch (Exception ex) {
 			throw new RuntimeException(ex);
 		}
@@ -172,6 +181,12 @@ public abstract class Generator {
 	
 	private void serializeTree(Tree t, File f) {
 		
+	}
+
+	private void copyBridge() {
+		File dest = new File(getBridgeTargetPath(), "$");
+		dest.mkdirs();
+		FileUtil.copyFile(new File("src/$/$.java"), new File(dest, "$.java"));
 	}
 	
 }
