@@ -79,10 +79,11 @@ public abstract class Generator {
 	/**
 	 * @param cleanTargetDir deletes the target directory to startup cleanly.
 	 */
-	public void copyProjectWithDebugCode(boolean cleanTargetDir) {
+	public void copyProjectWithDebugCode(boolean cleanTargetDir, String bridgeName) {
+		this.bridgeName = bridgeName;
 		long start = System.currentTimeMillis();
 		if (cleanTargetDir) {
-			FileUtil.deltree(getTargetPath());
+			FileUtil.delTree(getTargetPath());
 		}
 		visit(getPath(), false);
 		visit(getPath(), true);
@@ -92,7 +93,7 @@ public abstract class Generator {
 	}
 
 // ------------------------------------------------------------------------------------------------
-// Private methods.
+// Private fields & methods.
 // ------------------------------------------------------------------------------------------------
 	
 	private Annotations ann;
@@ -102,6 +103,7 @@ public abstract class Generator {
 	private int currentFileToCopy;
 	private long bytesToCopy;
 	private long copiedBytes;
+	private String bridgeName;
 	
 	private Annotations getAnnotations() {
 		if (ann == null) {
@@ -141,7 +143,7 @@ public abstract class Generator {
 		
 		try {
 			System.out.print("Transforming file " + f.getAbsolutePath() + "(" + (++currentFileToTransform) + "/" + filesToTransform + ")... ");
-			Tree t = new DebugCodeInserter(new JavaParser().parse("CompilationUnit", f), getAnnotations()).run().getParseTree().tree;
+			Tree t = new DebugCodeInserter(new JavaParser().parse(f), getAnnotations(), bridgeName).run().getParseTree().tree;
 			PrintWriter out = new PrintWriter(new FileWriter(getTarget(f, getTargetPath())));
 			out.print(t);
 			out.close();
@@ -182,9 +184,11 @@ public abstract class Generator {
 	}
 
 	private void copyBridge() {
-		File dest = new File(getBridgeTargetPath(), "$");
+		File dest = new File(getBridgeTargetPath(), bridgeName);
 		dest.mkdirs();
-		FileUtil.copyFile(new File("src/$/$.java"), new File(dest, "$.java"));
+		File destFile = new File(dest, bridgeName + ".java");
+		FileUtil.copyFile(new File("src/$/$.java"), destFile);
+		FileUtil.replaceAll(destFile, "$", bridgeName);
 	}
 	
 }

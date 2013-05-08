@@ -24,9 +24,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
 
 public class FileUtil {
 
@@ -73,18 +76,97 @@ public class FileUtil {
 		}
 	}
 	
-	public static void deltree(File dir) {
+	public static void copyDir(File src, File dest) {
+		if (!src.exists() || !src.isDirectory()) {
+			return;
+		}
+		copyDirs(src, new File(dest, src.getName()));
+	}
+	
+	private static void copyDirs(File src, File dest) {
+		dest.mkdirs();
+		for (File entry: src.listFiles()) {
+			if (entry.isDirectory()) {
+				copyDirs(entry, new File(dest, entry.getName()));
+			} else {
+				copyFile(entry, new File(dest, entry.getName()));
+			}
+		}
+	}
+	
+	public static void delTree(File dir) {
 		if (!dir.exists() || !dir.isDirectory()) {
 			return;
 		}
 		for (File entry: dir.listFiles()) {
 			if (entry.isDirectory()) {
-				deltree(entry);
+				delTree(entry);
 			} else {
 				entry.delete();
 			}
 		}
 		dir.delete();
+	}
+	
+	public static boolean appendLine(File textFile, String line) {
+		if (!textFile.exists()) {
+			return false;
+		}
+		try {
+			ArrayList<String> lines = new ArrayList<String>();
+			BufferedReader buff = new BufferedReader(new FileReader(textFile));
+			while (true) {
+				String s = buff.readLine();
+				if (s == null) {
+					break;
+				}
+				lines.add(s);
+			}
+			buff.close();
+			PrintWriter out = new PrintWriter(new FileWriter(textFile));
+			for (String s: lines) {
+				out.println(s);
+			}
+			out.println(line);
+			out.close();
+			return true;
+		} catch (IOException ex) {
+			return false;
+		}
+	}
+	
+	public static void replaceAll(File textFile, String substr, String newstr) {
+		if (!textFile.exists() || !textFile.isFile()) {
+			return;
+		}
+		try {
+			BufferedReader inp = new BufferedReader(new FileReader(textFile));
+			StringBuffer buff = new StringBuffer();
+			while (true) {
+				String line = inp.readLine();
+				if (line == null) {
+					break;
+				}
+				buff.append(line);
+				buff.append('\n');
+			}
+			inp.close();
+			StringBuffer substrBuff = new StringBuffer();
+			for (int i = 0; i < substr.length(); i++) {
+				char ch = substr.charAt(i);
+				if (!Character.isLetterOrDigit(ch)) {
+					substrBuff.append('\\');
+				}
+				substrBuff.append(ch);
+			}
+			substr = substrBuff.toString();
+			String s = buff.toString().replaceAll(substr, newstr);
+			PrintWriter out = new PrintWriter(new FileWriter(textFile));
+			out.print(s);
+			out.close();
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
 	}
 	
 }

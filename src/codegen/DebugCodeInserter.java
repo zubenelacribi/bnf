@@ -30,10 +30,12 @@ public class DebugCodeInserter {
 
 	private ParseTree parseTree;
 	private Annotations ann;
+	private String bridgeName;
 
-	public DebugCodeInserter(ParseTree parseTree, Annotations ann) {
+	public DebugCodeInserter(ParseTree parseTree, Annotations ann, String bridgeName) {
 		this.parseTree = parseTree;
 		this.ann = ann;
+		this.bridgeName = bridgeName;
 		ann.newFile(parseTree.filename);
 	}
 
@@ -73,16 +75,16 @@ public class DebugCodeInserter {
 
 			if (!(tree.parent != null && tree.parent.parent != null && tree.parent.parent.def.node.equals("ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate]"))) {
 				boolean typeField = typeField(tree);
-				String context = typeField ? "-1l, " : "$_$, ";
+				String context = typeField ? "-1l, " : "" + bridgeName + "_" + bridgeName + ", ";
 				ArrayList<String> assignmentVars = new ArrayList<String>();
 				if (traceableExpression(tree, assignmentVars) && tree.prefix == null) {
-//					tree.prefix = "$.$.$(" + ann.annotation(Type.expr, tree.begin, tree.end) + "l, " + context + "\"\", ";
+//					tree.prefix = "" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.expr, tree.begin, tree.end) + "l, " + context + "\"\", ";
 //					tree.suffix = ")";
 				}
 				if (assignmentVars.size() > 0) {
 					StringBuffer buff = new StringBuffer();
 					for (String s: assignmentVars) {
-						buff.append(" $.$.$(" + ann.annotation(Type.var, tree.begin, tree.end) + "l, " + context + "\"");
+						buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.var, tree.begin, tree.end) + "l, " + context + "\"");
 						buff.append(s);
 						buff.append("\", ");
 						buff.append(s);
@@ -105,12 +107,12 @@ public class DebugCodeInserter {
 
 			if (tree.branches.get(0) != null) { // LocalVariableDeclarationStatement: { VariableModifier } Type VariableDeclarators ';'
 				tree = tree.branches.get(0);
-				tree.prefix = " $.$.step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, $_$); ";
+				tree.prefix = " " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
 				Tree t = tree.branches.get(2); // VariableDeclarators: VariableDeclarator { ',' VariableDeclarator }
 				StringBuffer buff = new StringBuffer();
 				String var = t.branches.get(0).branches.get(0).node; // VariableDeclarator: Identifier VariableDeclaratorRest
 				if (t.branches.get(0).branches.get(1).branches.get(1).node.length() > 0) { // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
-					buff.append(" $.$.$(" + ann.annotation(Type.vardecl, tree.begin, tree.end) + "l, $_$, \"");
+					buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.vardecl, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
 					buff.append(var);
 					buff.append("\", ");
 					buff.append(var);
@@ -120,7 +122,7 @@ public class DebugCodeInserter {
 				for (Tree b: t.branches) {
 					var = b.branches.get(1).branches.get(0).node; // VariableDeclarator: Identifier VariableDeclaratorRest
 					if (t.branches.get(0).branches.get(1).branches.get(1).node.length() > 0) { // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
-						buff.append(" $.$.$(" + ann.annotation(Type.vardecl, t.begin, t.end) + "l, $_$, \"");
+						buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.vardecl, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
 						buff.append(var);
 						buff.append("\", ");
 						buff.append(var);
@@ -133,18 +135,18 @@ public class DebugCodeInserter {
 				if (constructorCall(tree)) {
 					return;
 				} else {
-					tree.prefix = " $.$.step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, $_$); ";
+					tree.prefix = " " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
 				}
 			}
 			
 		} else if (tree.def.node.startsWith("'if'") && tree.def.branches.size() > 0) { // 'if' ParExpression Statement ['else' Statement]
 			
 			Tree t = tree.branches.get(2);
-			t.prefix = "{ $.$.step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, $_$); ";
+			t.prefix = "{ " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
 			t.suffix = " }";
 			if (tree.branches.size() > 3 && tree.branches.get(3).node.length() > 0) {
 				t = tree.branches.get(3).branches.get(1);
-				t.prefix = "{ $.$.step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, $_$); ";
+				t.prefix = "{ " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
 				t.suffix = " }";
 			}
 			
@@ -167,27 +169,27 @@ public class DebugCodeInserter {
 			scope(tree);
 			StringBuffer buff = new StringBuffer();
 			for (String s: declaredVars) {
-				buff.append(" $.$.$(" + ann.annotation(Type.vardecl, tree.begin, tree.end) + "l, $_$, \"");
+				buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.vardecl, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
 				buff.append(s);
 				buff.append("\", ");
 				buff.append(s);
 				buff.append("); ");
 			}
 			t = tree.branches.get(4);
-			t.prefix = "{ " + buff + " $.$.step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, $_$); ";
+			t.prefix = "{ " + buff + " " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
 			t.suffix = " } ";
 
 		} else if (tree.def.node.startsWith("'do'") && tree.def.branches.size() > 0) { // 'do' Statement 'while' ParExpression ';'
 			
 			Tree t = tree.branches.get(1);
-			t.prefix = "{ $.$.step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, $_$); ";
+			t.prefix = "{ " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
 			t.suffix = " } ";
 			scope(tree);
 			
 		} else if (tree.def.node.startsWith("'while'") && tree.def.branches.size() > 0) { // 'while' ParExpression Statement
 			
 			Tree t = tree.branches.get(2);
-			t.prefix = "{ $.$.step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, $_$); ";
+			t.prefix = "{ " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
 			t.suffix = " } ";
 			scope(tree);
 			
@@ -250,7 +252,7 @@ public class DebugCodeInserter {
 		} else {
 			t.prefix = "{" + s;
 		}
-		t.suffix = " finally { $.$.endscope(" + ann.annotation(Type.endscope, t.begin, t.end) + "l); } }";
+		t.suffix = " finally { " + bridgeName + "." + bridgeName + ".endscope(" + ann.annotation(Type.endscope, t.begin, t.end) + "l); } }";
 	}
 	
 	private boolean constructorCall(Tree t) {
@@ -283,18 +285,18 @@ public class DebugCodeInserter {
 	private String formalParameters(Tree t) {
 		String[] params = getListOfFormalParameters(t);
 		StringBuffer buff = new StringBuffer();
-		buff.append(" long $_$ = $.$.scope(" + ann.annotation(Type.scope, t.begin, t.end) + "l); ");
+		buff.append(" long " + bridgeName + "_" + bridgeName + " = " + bridgeName + "." + bridgeName + ".scope(" + ann.annotation(Type.scope, t.begin, t.end) + "l); ");
 		if (!isStatic(t)) {
-			buff.append("$.$.$(" + ann.annotation(Type.arg, t.begin, t.end) + "l, $_$, \"this\", this); ");
+			buff.append("" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.arg, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + ", \"this\", this); ");
 		}
 		for (int i = 0; i < params.length; i++) {
-			buff.append("$.$.$(" + ann.annotation(Type.arg, t.begin, t.end) + "l, $_$, \"");
+			buff.append("" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.arg, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
 			buff.append(params[i]);
 			buff.append("\", ");
 			buff.append(params[i]);
 			buff.append("); ");
 		}
-		buff.append("$.$.step(" + ann.annotation(Type.step, t.begin, t.end) + "l, $_$); try ");
+		buff.append("" + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + "); try ");
 		return buff.toString();
 	}
 	
@@ -427,11 +429,11 @@ public class DebugCodeInserter {
 		if (t.prefix == null) {
 			t.prefix = "";
 		}
-		t.prefix += "$_$ = $.$.scope(" + ann.annotation(Type.scope, t.begin, t.end) + "l); try { ";
+		t.prefix += "" + bridgeName + "_" + bridgeName + " = " + bridgeName + "." + bridgeName + ".scope(" + ann.annotation(Type.scope, t.begin, t.end) + "l); try { ";
 		if (t.suffix == null) {
 			t.suffix = "";
 		}
-		t.suffix += " } finally { $_$ = $.$.endscope(" + ann.annotation(Type.endscope, t.begin, t.end) + "l); } ";
+		t.suffix += " } finally { " + bridgeName + "_" + bridgeName + " = " + bridgeName + "." + bridgeName + ".endscope(" + ann.annotation(Type.endscope, t.begin, t.end) + "l); } ";
 	}
 
 	private void inspectField(Tree t) {
@@ -450,13 +452,13 @@ public class DebugCodeInserter {
 					if (last.branches.get(0) != null) {
 						last = last.branches.get(0); // '.' Identifier [Arguments]
 						if (last.branches.get(2).node.length() == 0) {
-							t.prefix = "$.$.$(" + ann.annotation(Type.obj, t.begin, prev.end) + "l, $_$, \"\", ";
+							t.prefix = "" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.obj, t.begin, prev.end) + "l, " + bridgeName + "_" + bridgeName + ", \"\", ";
 							prev.suffix = ")";
 							String fieldName = last.branches.get(1).node;
 							if (original.parent.def.node.equals("Expression1 [ AssignmentOperator Expression ]") &&
 									original.parent.branches.get(1).node.length() > 0) {
 								Tree v = original.parent.branches.get(1).branches.get(1);
-								String prefix = "$.$.$(" + ann.annotation(Type.field, v.begin, v.end) + "l, $_$, \"" + fieldName + "\", ";
+								String prefix = "" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.field, v.begin, v.end) + "l, " + bridgeName + "_" + bridgeName + ", \"" + fieldName + "\", ";
 								if (v.prefix == null) {
 									v.prefix = prefix;
 									v.suffix = ")";
