@@ -208,7 +208,7 @@ public class DebugCodeInserter {
 			boolean visibility = false;
 			for (Tree b: tree.branches) {
 				if (b.node.equals("protected") || b.node.equals("private")) {
-					if (!enumConstructor(tree)) {
+					if (!enumConstructor(tree) && !innerTypeOfAnonumousClass(tree)) {
 						b.prefix = "public";
 						b.hide = true;
 						visibility = true;
@@ -221,7 +221,8 @@ public class DebugCodeInserter {
 					}
 				}
 			}
-			if (!visibility && !inlineClassDefinition(tree) && !enumConstructor(tree)) {
+			if (!visibility && !inlineClassDefinition(tree) &&
+					!enumConstructor(tree) && !innerTypeOfAnonumousClass(tree)) {
 				tree.parent.prefix = "public ";
 				if (tree.begin == tree.end) {
 					Tree t = tree.parent;
@@ -531,6 +532,25 @@ public class DebugCodeInserter {
 		} else {
 			return false;
 		}
+	}
+
+	private boolean innerTypeOfAnonumousClass(Tree t) {
+		if (t.parent.def.node.equals("{Modifier} MemberDecl")) {
+			t = t.parent.branches.get(1);
+			if ((t.branches.size() > 4 && t.branches.get(4) != null) ||
+					(t.branches.size() > 5 && t.branches.get(5) != null)) { // Class or interface declaration.
+				for (int i = 0; i < 5; i++) {
+					if (t.parent == null) {
+						return false;
+					}
+					t = t.parent;
+				}
+				if (t.def.node.equals("Arguments [ClassBody]")) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 	
 	public ParseTree getParseTree() {
