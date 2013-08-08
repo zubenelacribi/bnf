@@ -366,7 +366,7 @@ public class Annotations {
 		if (shutdown) {
 			throw new RuntimeException("The annotation pool is already shut down.");
 		}
-		writeInt(files.size() - 1);
+		writeInt(((files.size() - 1) << RESERVED_BITS) | t.ordinal());
 		writeInt(linePos[startPos]);
 		writeInt(columnPos[startPos]);
 		writeInt(linePos[endPos]);
@@ -442,7 +442,18 @@ public class Annotations {
 	 */
 	public int getFileNumber(long annotationNumber) {
 		int pos = seek(annotationNumber);
-		return readInt(pos);
+		return readInt(pos) >> RESERVED_BITS;
+	}
+	
+	/**
+	 * The annotation type is encoded in the file number field in order
+	 * to be possible to be retrieved by reading from the annotations file.
+	 * @param annotationNumber a number between 0 and getCurrentAnnotationNumber().
+	 * @return the annotation type read from the annotations file.
+	 */
+	public Type getAnnotationTypeFromFile(long annotationNumber) {
+		int pos = seek(annotationNumber);
+		return Type.values()[readInt(pos) & ((1 << RESERVED_BITS) - 1)];
 	}
 	
 	/**
@@ -460,38 +471,38 @@ public class Annotations {
 	
 	/**
 	 * Gets the line number from which this annotation starts.
-	 * @param annotation the encoded annotation as it appears in the generated source code.
+	 * @param annotationNumber a number between 0 and getCurrentAnnotationNumber().
 	 * @return the start line number.
 	 */
-	public int getStartLineNumber(long annotation) {
-		return readInt(seek(getAnnotationNumber(annotation)) + 4);
+	public int getStartLineNumber(long annotationNumber) {
+		return readInt(seek(annotationNumber) + 4);
 	}
 	
 	/**
 	 * Gets the column number from which this annotation starts.
-	 * @param annotation the encoded annotation as it appears in the generated source code.
+	 * @param annotationNumber a number between 0 and getCurrentAnnotationNumber().
 	 * @return the start column number.
 	 */
-	public int getStartColumnNumber(long annotation) {
-		return readInt(seek(getAnnotationNumber(annotation)) + 8);
+	public int getStartColumnNumber(long annotationNumber) {
+		return readInt(seek(annotationNumber) + 8);
 	}
 	
 	/**
 	 * Gets the line number to which this annotation ends.
-	 * @param annotation the encoded annotation as it appears in the generated source code.
+	 * @param annotationNumber a number between 0 and getCurrentAnnotationNumber().
 	 * @return the end line number.
 	 */
-	public int getEndLineNumber(long annotation) {
-		return readInt(seek(getAnnotationNumber(annotation)) + 12);
+	public int getEndLineNumber(long annotationNumber) {
+		return readInt(seek(annotationNumber) + 12);
 	}
 	
 	/**
 	 * Gets the column number to which this annotation ends.
-	 * @param annotation the encoded annotation as it appears in the generated source code.
+	 * @param annotationNumber a number between 0 and getCurrentAnnotationNumber().
 	 * @return the end column number.
 	 */
-	public int getEndColumnNumber(long annotation) {
-		return readInt(seek(getAnnotationNumber(annotation)) + 16);
+	public int getEndColumnNumber(long annotationNumber) {
+		return readInt(seek(annotationNumber) + 16);
 	}
 	
 	/**
