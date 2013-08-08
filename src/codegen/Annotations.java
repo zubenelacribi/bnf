@@ -131,19 +131,23 @@ public class Annotations {
 		
 		/** Creates a new FileVersion entry. The original path and mod time are stored and a new file mapping is worked out. */
 		public FileVersion(File f) {
-			path = f.getAbsolutePath();
-			modified = new Date(f.lastModified());
-			
-			List<FileVersion> list = originalPathMap.get(path);
-			File g = new File(gen.getSourceCache(), path.substring(gen.getPath().getParentFile().getAbsolutePath().length()) + '.' + (list == null ? 1 : list.size() + 1));
-			if (g.exists()) {
-				if (!f.isFile()) {
-					throw new RuntimeException("Not a file: " + g.getAbsolutePath());
-				} else if (!f.delete()) {
-					throw new RuntimeException("Cannot delete file: " + g.getAbsolutePath());
+			try {
+				path = f.getCanonicalPath();
+				modified = new Date(f.lastModified());
+				
+				List<FileVersion> list = originalPathMap.get(path);
+				File g = new File(gen.getSourceCache(), path.substring(gen.getPath().getCanonicalFile().getParentFile().getAbsolutePath().length()) + '.' + (list == null ? 1 : list.size() + 1));
+				if (g.exists()) {
+					if (!f.isFile()) {
+						throw new RuntimeException("Not a file: " + g.getCanonicalPath());
+					} else if (!f.delete()) {
+						throw new RuntimeException("Cannot delete file: " + g.getCanonicalPath());
+					}
 				}
+				mappedPath = g.getCanonicalPath();
+			} catch (IOException ex) {
+				throw new RuntimeException(ex);
 			}
-			mappedPath = g.getAbsolutePath();
 		}
 		
 		@Override
@@ -274,16 +278,20 @@ public class Annotations {
 	 * @return 'true' if the file on disk has the same modified time as in the records in files.txt.
 	 */
 	public boolean isUpToDate(File f) {
-		List<FileVersion> listVersions = originalPathMap.get(f.getAbsolutePath());
-		if (listVersions != null) {
-			for (FileVersion version: listVersions) {
-				if (version.modified.getTime() > f.lastModified()) {
-					return false;
+		try {
+			List<FileVersion> listVersions = originalPathMap.get(f.getCanonicalPath());
+			if (listVersions != null) {
+				for (FileVersion version: listVersions) {
+					if (version.modified.getTime() > f.lastModified()) {
+						return false;
+					}
 				}
+				return true;
 			}
-			return true;
+			return false;
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
 		}
-		return false;
 	}
 	
 	/**

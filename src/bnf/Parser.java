@@ -20,6 +20,7 @@
 package bnf;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -112,7 +113,11 @@ public abstract class Parser {
 	}
 
 	public ParseTree parse(String def, File f) throws ParseException {
-		return new ParseTree(f.getAbsolutePath(), parse(def, FileUtil.readFile(f)));
+		try {
+			return new ParseTree(f.getCanonicalPath(), parse(def, FileUtil.readFile(f)));
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		}
 	}
 	
 	public Tree parse(String def, String s) throws ParseException {

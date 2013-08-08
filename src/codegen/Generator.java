@@ -21,6 +21,7 @@ package codegen;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 
 import bnf.JavaParser;
@@ -110,7 +111,11 @@ public abstract class Generator {
 	
 	public Annotations getAnnotations() {
 		if (ann == null) {
-			ann = new Annotations(this, getSourceCache().getAbsolutePath() + File.separatorChar + ".annotations");
+			try {
+				ann = new Annotations(this, getSourceCache().getCanonicalPath() + File.separatorChar + ".annotations");
+			} catch (IOException ex) {
+				throw new RuntimeException(ex);
+			}
 		}
 		return ann;
 	}
@@ -149,7 +154,7 @@ public abstract class Generator {
 		}
 		
 		try {
-			System.out.print("Transforming file " + f.getAbsolutePath() + "(" + (++currentFileToTransform) + "/" + filesToTransform + ")... ");
+			System.out.print("Transforming file " + f.getCanonicalPath() + "(" + (++currentFileToTransform) + "/" + filesToTransform + ")... ");
 			DebugCodeInserter debug = new DebugCodeInserter(new JavaParser().parse(f), getAnnotations(), bridgeName);
 			Tree t = debug.run().getParseTree().tree;
 			PrintWriter out = new PrintWriter(new FileWriter(getTarget(f, getTargetPath())));
@@ -175,10 +180,14 @@ public abstract class Generator {
 			bytesToCopy += f.length();
 			return;
 		}
-		System.out.print("Copying file " + f.getAbsolutePath() + "(" + (++currentFileToCopy) + "/" + filesToCopy + ", bytes " + copiedBytes + "/" + bytesToCopy + ")... ");
-		FileUtil.copyFile(f, getTarget(f, getTargetPath()));
-		copiedBytes += f.length();
-		ann.newFile(f.getAbsolutePath());
+		try {
+			System.out.print("Copying file " + f.getCanonicalPath() + "(" + (++currentFileToCopy) + "/" + filesToCopy + ", bytes " + copiedBytes + "/" + bytesToCopy + ")... ");
+			FileUtil.copyFile(f, getTarget(f, getTargetPath()));
+			copiedBytes += f.length();
+			ann.newFile(f.getCanonicalPath());
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		}
 		System.out.println("done.");
 	}
 	
