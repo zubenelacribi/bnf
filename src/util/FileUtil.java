@@ -58,6 +58,9 @@ public class FileUtil {
 	}
 	
 	public static void copyFile(File src, File dest) {
+		if (!dest.getParentFile().exists() && !dest.getParentFile().mkdirs()) {
+			throw new RuntimeException("Cannot create directory tree: " + dest.getParent());
+		}
 		try {
 			byte[] buffer = new byte[1048576];
 			InputStream inp = new FileInputStream(src);
@@ -151,22 +154,25 @@ public class FileUtil {
 				buff.append('\n');
 			}
 			inp.close();
-			StringBuffer substrBuff = new StringBuffer();
-			for (int i = 0; i < substr.length(); i++) {
-				char ch = substr.charAt(i);
-				if (!Character.isLetterOrDigit(ch)) {
-					substrBuff.append('\\');
-				}
-				substrBuff.append(ch);
-			}
-			substr = substrBuff.toString();
-			String s = buff.toString().replaceAll(substr, newstr);
+			String s = buff.toString().replaceAll(escape(substr), escape(newstr));
 			PrintWriter out = new PrintWriter(new FileWriter(textFile));
 			out.print(s);
 			out.close();
 		} catch (IOException ex) {
 			ex.printStackTrace();
 		}
+	}
+	
+	public static String escape(String s) {
+		StringBuffer buff = new StringBuffer();
+		for (int i = 0; i < s.length(); i++) {
+			char ch = s.charAt(i);
+			if (!Character.isLetterOrDigit(ch)) {
+				buff.append('\\');
+			}
+			buff.append(ch);
+		}
+		return buff.toString();
 	}
 	
 }

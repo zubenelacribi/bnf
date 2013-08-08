@@ -21,22 +21,34 @@ package codegen;
 
 import java.util.ArrayList;
 
+import codegen.Annotations.FileVersion;
 import codegen.Annotations.Type;
 
 import bnf.Tree;
 import bnf.ParseTree;
 
+/**
+ * 
+ * Inserts debug code into a parsed Java source file.
+ * The debug code inspects entering and exiting methods, block statements,
+ * expression values, changing of the value of a local variable,
+ * field or array element.
+ * 
+ * @author Zuben El Acribi
+ *
+ */
 public class DebugCodeInserter {
 
 	private ParseTree parseTree;
 	private Annotations ann;
 	private String bridgeName;
+	private Annotations.FileVersion file;
 
 	public DebugCodeInserter(ParseTree parseTree, Annotations ann, String bridgeName) {
 		this.parseTree = parseTree;
 		this.ann = ann;
 		this.bridgeName = bridgeName;
-		ann.newFile(parseTree.filename);
+		file = ann.newSourceFile(parseTree.filename);
 	}
 
 	public DebugCodeInserter run() {
@@ -112,7 +124,7 @@ public class DebugCodeInserter {
 				StringBuffer buff = new StringBuffer();
 				String var = t.branches.get(0).branches.get(0).node; // VariableDeclarator: Identifier VariableDeclaratorRest
 				if (t.branches.get(0).branches.get(1).branches.get(1).node.length() > 0) { // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
-					buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.vardecl, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
+					buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.var, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
 					buff.append(var);
 					buff.append("\", ");
 					buff.append(var);
@@ -122,7 +134,7 @@ public class DebugCodeInserter {
 				for (Tree b: t.branches) {
 					var = b.branches.get(1).branches.get(0).node; // VariableDeclarator: Identifier VariableDeclaratorRest
 					if (t.branches.get(0).branches.get(1).branches.get(1).node.length() > 0) { // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
-						buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.vardecl, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
+						buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.var, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
 						buff.append(var);
 						buff.append("\", ");
 						buff.append(var);
@@ -169,7 +181,7 @@ public class DebugCodeInserter {
 			scope(tree);
 			StringBuffer buff = new StringBuffer();
 			for (String s: declaredVars) {
-				buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.vardecl, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
+				buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.var, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
 				buff.append(s);
 				buff.append("\", ");
 				buff.append(s);
@@ -555,6 +567,10 @@ public class DebugCodeInserter {
 	
 	public ParseTree getParseTree() {
 		return parseTree;
+	}
+	
+	public FileVersion getFileVersion() {
+		return file;
 	}
 
 }

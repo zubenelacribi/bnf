@@ -76,6 +76,9 @@ public abstract class Generator {
 // Main method.
 // ------------------------------------------------------------------------------------------------
 	
+	private static final boolean JUST_VISIT_FILES = false;
+	private static final boolean DO_TRANSFORMATIONS = true;
+	
 	/**
 	 * @param cleanTargetDir deletes the target directory to startup cleanly.
 	 */
@@ -85,8 +88,8 @@ public abstract class Generator {
 		if (cleanTargetDir) {
 			FileUtil.delTree(getTargetPath());
 		}
-		visit(getPath(), false);
-		visit(getPath(), true);
+		visit(getPath(), JUST_VISIT_FILES);
+		visit(getPath(), DO_TRANSFORMATIONS);
 		getAnnotations().shutdown();
 		copyBridge();
 		System.out.println("Job done in " + (System.currentTimeMillis() - start) + " ms.");
@@ -105,9 +108,9 @@ public abstract class Generator {
 	private long copiedBytes;
 	private String bridgeName;
 	
-	private Annotations getAnnotations() {
+	public Annotations getAnnotations() {
 		if (ann == null) {
-			ann = new Annotations(getSourceCache().getAbsolutePath() + File.separatorChar + ".annotations");
+			ann = new Annotations(this, getSourceCache().getAbsolutePath() + File.separatorChar + ".annotations");
 		}
 		return ann;
 	}
@@ -135,7 +138,11 @@ public abstract class Generator {
 	}
 	
 	private void transform(File f, boolean doJob) {
-		
+
+		if (getAnnotations().isUpToDate(f)) {
+			return;
+		}
+
 		if (!doJob) {
 			filesToTransform++;
 			return;
@@ -143,13 +150,12 @@ public abstract class Generator {
 		
 		try {
 			System.out.print("Transforming file " + f.getAbsolutePath() + "(" + (++currentFileToTransform) + "/" + filesToTransform + ")... ");
-			Tree t = new DebugCodeInserter(new JavaParser().parse(f), getAnnotations(), bridgeName).run().getParseTree().tree;
+			DebugCodeInserter debug = new DebugCodeInserter(new JavaParser().parse(f), getAnnotations(), bridgeName);
+			Tree t = debug.run().getParseTree().tree;
 			PrintWriter out = new PrintWriter(new FileWriter(getTarget(f, getTargetPath())));
 			out.print(t);
 			out.close();
-			File target = getTarget(f, getSourceCache());
-			FileUtil.copyFile(f, target);
-			serializeTree(t, new File(target.getParentFile(), target.getName() + ".tree"));
+			FileUtil.copyFile(f, new File(debug.getFileVersion().mappedPath));
 			System.out.println("done.");
 		} catch (StackOverflowError ex) {
 			System.err.println("Stack overflow while parsing file " + f.getAbsolutePath());
@@ -159,6 +165,11 @@ public abstract class Generator {
 	}
 	
 	private void copyFile(File f, boolean doJob) {
+
+		if (getAnnotations().isUpToDate(f)) {
+			return;
+		}
+
 		if (!doJob) {
 			filesToCopy++;
 			bytesToCopy += f.length();
@@ -167,10 +178,11 @@ public abstract class Generator {
 		System.out.print("Copying file " + f.getAbsolutePath() + "(" + (++currentFileToCopy) + "/" + filesToCopy + ", bytes " + copiedBytes + "/" + bytesToCopy + ")... ");
 		FileUtil.copyFile(f, getTarget(f, getTargetPath()));
 		copiedBytes += f.length();
+		ann.newFile(f.getAbsolutePath());
 		System.out.println("done.");
 	}
 	
-	private File getTarget(File f, File targetDir) {
+	public File getTarget(File f, File targetDir) {
 		File target = new File(targetDir, f.getAbsolutePath().substring(getPath().getAbsolutePath().length()));		
 		if (!target.getParentFile().exists() && !target.getParentFile().mkdirs()) {
 			throw new RuntimeException("Cannot create target path " + target.getParent());
@@ -178,11 +190,6 @@ public abstract class Generator {
 		return target;
 	}
 	
-	private void serializeTree(Tree t, File f) {
-		// TODO Trees may be pre-cached in the source cache in order not to loose time when loading
-		// the file by the debugger.
-	}
-
 	private void copyBridge() {
 		File dest = new File(getBridgeTargetPath(), bridgeName);
 		dest.mkdirs();
