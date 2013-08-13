@@ -557,18 +557,22 @@ public class Annotations {
 				try {
 					annotFile.seek(absoluteWritePos);
 					annotFile.write(writeBuffer, 0, posInWriteBuffer);
-					annotFile.close();
-					PrintWriter pr = new PrintWriter(new File(new File(path), FILE_NAMES));
-					for (FileVersion version: files) {
-						pr.println(version);
-					}
-					pr.close();
 				} catch (IOException ex) {
 					throw new RuntimeException(ex);
 				}
 			}
 		} finally {
 			shutdown = true;
+			try {
+				annotFile.close();
+				PrintWriter pr = new PrintWriter(new File(new File(path), FILE_NAMES));
+				for (FileVersion version: files) {
+					pr.println(version);
+				}
+				pr.close();
+			} catch (IOException ex) {
+				throw new RuntimeException(ex);
+			}
 		}
 	}
 	

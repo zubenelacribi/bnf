@@ -21,7 +21,6 @@ package codegen;
 
 import java.util.ArrayList;
 
-import codegen.Annotations.FileVersion;
 import codegen.Annotations.Type;
 
 import bnf.Tree;
@@ -42,13 +41,11 @@ public class DebugCodeInserter {
 	private ParseTree parseTree;
 	private Annotations ann;
 	private String bridgeName;
-	private Annotations.FileVersion file;
 
 	public DebugCodeInserter(ParseTree parseTree, Annotations ann, String bridgeName) {
 		this.parseTree = parseTree;
 		this.ann = ann;
 		this.bridgeName = bridgeName;
-		file = ann.newSourceFile(parseTree.filename);
 	}
 
 	public DebugCodeInserter run() {
@@ -569,8 +566,4 @@ public class DebugCodeInserter {
 		return parseTree;
 	}
 	
-	public FileVersion getFileVersion() {
-		return file;
-	}
-
 }

@@ -24,11 +24,26 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 
+import codegen.Annotations.FileVersion;
+
 import bnf.JavaParser;
-import bnf.Tree;
+import bnf.ParseTree;
+import bnf.ParserInitializationException;
 
 import util.FileUtil;
 
+/**
+ * 
+ * A utility that transforms all source file from a Java project.
+ * The type of the transformation depends in the implementation,
+ * e.g. the DebugCodeInserterGenerator transforms a whole Java project
+ * into a Java project with inserted debug code which can be
+ * used for debugging in the forward and the backward direction of
+ * the instruction flow (time machine).
+ * 
+ * @author Zuben El Acribi
+ *
+ */
 public abstract class Generator {
 
 // ------------------------------------------------------------------------------------------------
@@ -46,9 +61,20 @@ public abstract class Generator {
 	public abstract File getTargetPath();
 	
 	/**
-	 * @return the source folder where the bridge $.java logging utility is going to be copied.
+	 * Initializes the generator.
 	 */
-	public abstract File getBridgeTargetPath();
+	public abstract void initialize();
+	
+	/**
+	 * Performs the job for which this generator is intended.
+	 * @param p a parsed source file. The annotation will be written in this object.
+	 */
+	public abstract void doJob(ParseTree p);
+	
+	/**
+	 * Shuts down the generator.
+	 */
+	public abstract void shutdown();
 	
 	/**
 	 * @return the path where annotations and the current state of the sources will be kept.
@@ -83,32 +109,22 @@ public abstract class Generator {
 	/**
 	 * @param cleanTargetDir deletes the target directory to startup cleanly.
 	 */
-	public void copyProjectWithDebugCode(boolean cleanTargetDir, String bridgeName) {
-		this.bridgeName = bridgeName;
+	public void transformCode(boolean cleanTargetDir) {
 		long start = System.currentTimeMillis();
 		if (cleanTargetDir) {
 			FileUtil.delTree(getTargetPath());
 		}
+		initialize();
 		visit(getPath(), JUST_VISIT_FILES);
 		visit(getPath(), DO_TRANSFORMATIONS);
+		shutdown();
 		getAnnotations().shutdown();
-		copyBridge();
 		System.out.println("Job done in " + (System.currentTimeMillis() - start) + " ms.");
 	}
 
-// ------------------------------------------------------------------------------------------------
-// Private fields & methods.
-// ------------------------------------------------------------------------------------------------
-	
-	private Annotations ann;
-	private int filesToTransform;
-	private int currentFileToTransform;
-	private int filesToCopy;
-	private int currentFileToCopy;
-	private long bytesToCopy;
-	private long copiedBytes;
-	private String bridgeName;
-	
+	/**
+	 * @return the annotation pool which will be used by the current generator.
+	 */
 	public Annotations getAnnotations() {
 		if (ann == null) {
 			try {
@@ -120,6 +136,40 @@ public abstract class Generator {
 		return ann;
 	}
 	
+// ------------------------------------------------------------------------------------------------
+// Private fields & methods.
+// ------------------------------------------------------------------------------------------------
+	
+	private Annotations ann;
+	private int filesToTransform;
+	private int currentFileToTransform;
+	private int filesToCopy;
+	private int currentFileToCopy;
+	private long bytesToCopy;
+	private long copiedBytes;
+	private JavaParser parser;
+
+	/**
+	 * @return the Java parser which will be used by the current pool.
+	 */
+	private JavaParser getJavaParser() {
+		if (parser == null) {
+			try {
+				parser = new JavaParser();
+			} catch (ParserInitializationException ex) {
+				throw new RuntimeException(ex);
+			}
+		}
+		return parser;
+	}
+
+	/**
+	 * Visits all the file recursively in the given directory and determines whether
+	 * they will be transformed, copied or skipped.
+	 * @param dir a directory.
+	 * @param doJob 'true' to do the code transformation job or 'false' in order just to
+	 *   count files.
+	 */
 	private void visit(File dir, boolean doJob) {
 		if (!dir.exists()) {
 			throw new RuntimeException("Path " + dir.getAbsolutePath() + " does not exist");
@@ -142,6 +192,12 @@ public abstract class Generator {
 		}
 	}
 	
+	/**
+	 * Transforms the given Java source file.
+	 * @param f a Java source file.
+	 * @param doJob 'true' to do the code transformation job or 'false' in order just to
+	 *   count up.
+	 */
 	private void transform(File f, boolean doJob) {
 
 		if (getAnnotations().isUpToDate(f)) {
@@ -155,12 +211,13 @@ public abstract class Generator {
 		
 		try {
 			System.out.print("Transforming file " + f.getCanonicalPath() + "(" + (++currentFileToTransform) + "/" + filesToTransform + ")... ");
-			DebugCodeInserter debug = new DebugCodeInserter(new JavaParser().parse(f), getAnnotations(), bridgeName);
-			Tree t = debug.run().getParseTree().tree;
+			FileVersion file = ann.newSourceFile(f.getCanonicalPath());
+			ParseTree p = getJavaParser().parse(f);
+			doJob(p);
 			PrintWriter out = new PrintWriter(new FileWriter(getTarget(f, getTargetPath())));
-			out.print(t);
+			out.print(p.tree);
 			out.close();
-			FileUtil.copyFile(f, new File(debug.getFileVersion().mappedPath));
+			FileUtil.copyFile(f, new File(file.mappedPath));
 			System.out.println("done.");
 		} catch (StackOverflowError ex) {
 			System.err.println("Stack overflow while parsing file " + f.getAbsolutePath());
@@ -169,6 +226,11 @@ public abstract class Generator {
 		}
 	}
 	
+	/**
+	 * Copies the given file.
+	 * @param f a which is not accepted as a source file but not refused to be copied.
+	 * @param doJob 'true' to copy the file or 'false' in order just to count up.
+	 */
 	private void copyFile(File f, boolean doJob) {
 
 		if (getAnnotations().isUpToDate(f)) {
@@ -191,20 +253,21 @@ public abstract class Generator {
 		System.out.println("done.");
 	}
 	
-	public File getTarget(File f, File targetDir) {
+	/**
+	 * Transforms the given path into relative to the source path and
+	 * then the relative path is transform to an absolute path using the
+	 * given target directory. The missing subdirectories will be created.
+	 * @param f a file from the source path.
+	 * @param targetDir the target path.
+	 * @return a file from the target path; the missing subdirectories in
+	 *   the target path will be created.
+	 */
+	private File getTarget(File f, File targetDir) {
 		File target = new File(targetDir, f.getAbsolutePath().substring(getPath().getAbsolutePath().length()));		
 		if (!target.getParentFile().exists() && !target.getParentFile().mkdirs()) {
 			throw new RuntimeException("Cannot create target path " + target.getParent());
 		}
 		return target;
-	}
-	
-	private void copyBridge() {
-		File dest = new File(getBridgeTargetPath(), bridgeName);
-		dest.mkdirs();
-		File destFile = new File(dest, bridgeName + ".java");
-		FileUtil.copyFile(new File("src/$/$.java"), destFile);
-		FileUtil.replaceAll(destFile, "$", bridgeName);
 	}
 	
 }
