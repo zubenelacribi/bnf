@@ -40,7 +40,7 @@ public class $ {
 	 */
 	@SuppressWarnings("all")
 	public static void step(long annotID, long scopeID) {
-		track(annotID, scopeID, "", null);
+		track(annotID, scopeID, null);
 	}
 	
 	/**
@@ -52,8 +52,8 @@ public class $ {
 	 * @return the 'value' argument.
 	 */
 	@SuppressWarnings("all")
-	public static boolean $(long annotID, long scopeID, String name, boolean value) {
-		track(annotID, scopeID, name, value ? 1 : 0);
+	public static boolean $(long annotID, long scopeID, boolean value) {
+		track(annotID, scopeID, value ? 1 : 0);
 		return value;
 	}
 
@@ -66,8 +66,8 @@ public class $ {
 	 * @return the 'value' argument.
 	 */
 	@SuppressWarnings("all")
-	public static byte $(long annotID, long scopeID, String name, byte value) {
-		track(annotID, scopeID, name, value & 0xffl);
+	public static byte $(long annotID, long scopeID, byte value) {
+		track(annotID, scopeID, value & 0xffl);
 		return value;
 	}
 
@@ -80,8 +80,8 @@ public class $ {
 	 * @return the 'value' argument.
 	 */
 	@SuppressWarnings("all")
-	public static short $(long annotID, long scopeID, String name, short value) {
-		track(annotID, scopeID, name, value & 0xffffl);
+	public static short $(long annotID, long scopeID, short value) {
+		track(annotID, scopeID, value & 0xffffl);
 		return value;
 	}
 
@@ -94,8 +94,8 @@ public class $ {
 	 * @return the 'value' argument.
 	 */
 	@SuppressWarnings("all")
-	public static char $(long annotID, long scopeID, String name, char value) {
-		track(annotID, scopeID, name, value & 0xffffl);
+	public static char $(long annotID, long scopeID, char value) {
+		track(annotID, scopeID, value & 0xffffl);
 		return value;
 	}
 
@@ -108,8 +108,8 @@ public class $ {
 	 * @return the 'value' argument.
 	 */
 	@SuppressWarnings("all")
-	public static int $(long annotID, long scopeID, String name, int value) {
-		track(annotID, scopeID, name, value & 0xffffffffl);
+	public static int $(long annotID, long scopeID, int value) {
+		track(annotID, scopeID, value & 0xffffffffl);
 		return value;
 	}
 
@@ -122,8 +122,8 @@ public class $ {
 	 * @return the 'value' argument.
 	 */
 	@SuppressWarnings("all")
-	public static long $(long annotID, long scopeID, String name, long value) {
-		track(annotID, scopeID, name, value);
+	public static long $(long annotID, long scopeID, long value) {
+		track(annotID, scopeID, value);
 		return value;
 	}
 
@@ -136,8 +136,8 @@ public class $ {
 	 * @return the 'value' argument.
 	 */
 	@SuppressWarnings("all")
-	public static float $(long annotID, long scopeID, String name, float value) {
-		track(annotID, scopeID, name, value);
+	public static float $(long annotID, long scopeID, float value) {
+		track(annotID, scopeID, value);
 		return value;
 	}
 
@@ -150,8 +150,8 @@ public class $ {
 	 * @return the 'value' argument.
 	 */
 	@SuppressWarnings("all")
-	public static double $(long annotID, long scopeID, String name, double value) {
-		track(annotID, scopeID, name, value);
+	public static double $(long annotID, long scopeID, double value) {
+		track(annotID, scopeID, value);
 		return value;
 	}
 
@@ -164,8 +164,8 @@ public class $ {
 	 * @return the 'value' argument.
 	 */
 	@SuppressWarnings("all")
-	public static <T> T $(long annotID, long scopeID, String name, T obj) {
-		track(annotID, scopeID, name, obj);
+	public static <T> T $(long annotID, long scopeID, T obj) {
+		track(annotID, scopeID, obj);
 		return obj;
 	}
 	
@@ -177,7 +177,7 @@ public class $ {
 	 * @param name a variable name if this value is assigned to a variable.
 	 * @param value the value bits.
 	 */
-	private static void track(long annotID, long scopeID, String name, long value) {
+	private static void track(long annotID, long scopeID, long value) {
 		
 	}
 	
@@ -188,8 +188,8 @@ public class $ {
 	 * @param name a variable name if this value is assigned to a variable.
 	 * @param value the floating point value.
 	 */
-	private static void track(long annotID, long scopeID, String name, double value) {
-		
+	private static void track(long annotID, long scopeID, double value) {
+		track(annotID, scopeID, Double.doubleToRawLongBits(value));
 	}
 	
 	/**
@@ -200,7 +200,7 @@ public class $ {
 	 * @param o an object that is going to be saved into a weak reference in order
 	 *   to be used later on when taking a snapshot.
 	 */
-	private static void track(long annotId, long scopeID, String name, Object o) {
+	private static void track(long annotId, long scopeID, Object o) {
 		
 	}
 	
@@ -219,8 +219,84 @@ public class $ {
 	 * @param annotID the static ID of the place of the tracked code we are currently on.
 	 * @return the previous scope ID.
 	 */
-	public static long endscope(long annotID) {
+	public static long endScope(long annotID, long scopeID) {
 		return 0;
+	}
+	
+	public static void exception(long annotID, long scopeID, Throwable ex) {
+		
+	}
+	
+	public static void arg(long scopeID, int argNameID, boolean value) {
+		
+	}
+
+	public static void arg(long scopeID, int argNameID, byte value) {
+		
+	}
+
+	public static void arg(long scopeID, int argNameID, short value) {
+		
+	}
+
+	public static void arg(long scopeID, int argNameID, char value) {
+		
+	}
+
+	public static void arg(long scopeID, int argNameID, int value) {
+		
+	}
+
+	public static void arg(long scopeID, int argNameID, long value) {
+		
+	}
+
+	public static void arg(long scopeID, int argNameID, float value) {
+		
+	}
+
+	public static void arg(long scopeID, int argNameID, double value) {
+		
+	}
+
+	public static <T> void arg(long scopeID, int argNameID, T value) {
+		
+	}
+
+	public static void var(long annotID, long scopeID, int argNameID, boolean value) {
+		
+	}
+
+	public static void var(long annotID, long scopeID, int argNameID, byte value) {
+		
+	}
+
+	public static void var(long annotID, long scopeID, int argNameID, short value) {
+		
+	}
+
+	public static void var(long annotID, long scopeID, int argNameID, char value) {
+		
+	}
+
+	public static void var(long annotID, long scopeID, int argNameID, int value) {
+		
+	}
+
+	public static void var(long annotID, long scopeID, int argNameID, long value) {
+		
+	}
+
+	public static void var(long annotID, long scopeID, int argNameID, float value) {
+		
+	}
+
+	public static void var(long annotID, long scopeID, int argNameID, double value) {
+		
+	}
+
+	public static <T> void var(long annotID, long scopeID, int argNameID, T value) {
+		
 	}
 
 }

@@ -53,13 +53,14 @@ public class Annotations {
 	 * a field in a given object; 'arr' and 'index' are used to mark
 	 * the changing of a value of an array element.
 	 */
-	public enum Type { step, expr, scope, endscope, var, arg, obj, field, arr, index }
+	public enum Type { step, expr, scope, endscope, var, arg, obj, field, arr, index, exception }
 	
 	/** The number of bits in the low part of the long representing the annotation which are reserved for annotation type. */
 	public static final int RESERVED_BITS = 4;
 	
 	private static final String ANNOTATIONS_BINARY_FILE = "annotations";
 	private static final String FILE_NAMES = "files.txt";
+	private static final String IDENTIFIER_NAMES = "identifiers.txt";
 	private static final int TUPLE_SIZE_IN_INTS = 5;
 	private static final int TUPLE_SIZE_IN_BYTES = TUPLE_SIZE_IN_INTS * 4;
 	
@@ -211,6 +212,7 @@ public class Annotations {
 			File dir = new File(path);
 			dir.mkdirs();
 			readFileNames();
+			readIdentifiersFile();
 			File f = new File(dir, ANNOTATIONS_BINARY_FILE);
 			annotFile = new RandomAccessFile(f, "rw");
 			if (f.length() > 0) {
@@ -546,6 +548,51 @@ public class Annotations {
 	}
 	
 	/**
+	 * This map is used to give IDs to identifiers, so that the generated code
+	 * will inspect variables and class fields by their IDs, not by their name,
+	 * which will improve performance. The identifiers' IDs are global, i.e.
+	 * all identifiers with the same name will have the same ID.
+	 */
+	private HashMap<String, Integer> identifierMap = new HashMap<String, Integer>();
+	
+	/**
+	 * Gives the corresponding ID of the specified identifier. If the identifier
+	 * is not in the identifierMap yet then it will be given a new ID.
+	 * @param identifier a variable/field name.
+	 * @return the ID for the given identifier; if the identifier hasn't been
+	 *   met then a new ID will be created.
+	 */
+	public int getIdentifierId(String identifier) {
+		if (identifierMap.get(identifier) == null) {
+			identifierMap.put(identifier, identifierMap.size());
+		}
+		return identifierMap.get(identifier);
+	}
+	
+	/**
+	 * Invoked by the constructor in order to initialize the identifier map.
+	 */
+	private void readIdentifiersFile() {
+		try {
+			File f = new File(new File(path), IDENTIFIER_NAMES);
+			if (!f.exists()) {
+				return;
+			}
+			BufferedReader buff = new BufferedReader(new FileReader(f));
+			while (true) {
+				String line = buff.readLine();
+				if (line == null) {
+					break;
+				}
+				getIdentifierId(line); // Creates a new identifier mapping since the identifier map should be empty.
+			}
+			buff.close();
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+	
+	/**
 	 * Shuts down the annotation pool. The info in the write buffer (if any) will be flushed to disk.
 	 */
 	public void shutdown() {
@@ -564,12 +611,23 @@ public class Annotations {
 		} finally {
 			shutdown = true;
 			try {
+				// Close annotations file.
 				annotFile.close();
+				
+				// Write file names to files.txt.
 				PrintWriter pr = new PrintWriter(new File(new File(path), FILE_NAMES));
 				for (FileVersion version: files) {
 					pr.println(version);
 				}
 				pr.close();
+				
+				// Write the identifier names to identifiers.txt.
+				pr = new PrintWriter(new File(new File(path), IDENTIFIER_NAMES));
+				for (int i = 0; i < identifierMap.size(); i++) {
+					pr.println(identifierMap.get(i));
+				}
+				pr.close();
+				
 			} catch (IOException ex) {
 				throw new RuntimeException(ex);
 			}

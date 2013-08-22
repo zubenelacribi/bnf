@@ -1,41 +1,9 @@
-/*
- * Utility for insertion of tracing debug code.
- * Copyright (C) 2013  Zuben El Acribi
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
 package codegen;
 
-import java.util.ArrayList;
-
 import codegen.Annotations.Type;
-
-import bnf.Tree;
 import bnf.ParseTree;
+import bnf.Tree;
 
-/**
- * 
- * Inserts debug code into a parsed Java source file.
- * The debug code inspects entering and exiting methods, block statements,
- * expression values, changing of the value of a local variable,
- * field or array element.
- * 
- * @author Zuben El Acribi
- *
- */
 public class DebugCodeInserter {
 
 	private ParseTree parseTree;
@@ -54,516 +22,573 @@ public class DebugCodeInserter {
 	}
 
 	private void insertDebugCode(Tree tree) {
-		if (tree.def.parent.node.equals("MethodDeclaratorRest")) { // MethodDeclaratorRest: FormalParameters {'[' ']'} ['throws' QualifiedIdentifierList] (Block | ';')
-
-			Tree params = tree.branches.get(0);
-			tree = tree.branches.get(3).branches.get(0);
-			if (tree == null) {
-				return;
-			}
-			block(tree, params);
-
-		} else if (tree.def.parent.node.equals("VoidMethodDeclaratorRest")) { // VoidMethodDeclaratorRest: FormalParameters ['throws' QualifiedIdentifierList] (Block | ';')
-
-			Tree params = tree.branches.get(0);
-			tree = tree.branches.get(2).branches.get(0);
-			if (tree == null) {
-				return;
-			}
-			block(tree, params);
-
-		} else if (tree.def.parent.node.equals("ConstructorDeclaratorRest")) { // ConstructorDeclaratorRest: FormalParameters ['throws' QualifiedIdentifierList] Block
-
-			block(tree.branches.get(2), tree.branches.get(0));
+		if (tree.def.parent.node.equals("CompilationUnit")) {
 			
-		} else if (tree.def.node.equals("['static'] Block")) { // Initializer.
-			
-			block(tree.branches.get(1), tree.branches.get(1));
-			
-		} else if (tree.def.parent.node.equals("Expression")) {
-
-			if (!(tree.parent != null && tree.parent.parent != null && tree.parent.parent.def.node.equals("ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate]"))) {
-				boolean typeField = typeField(tree);
-				String context = typeField ? "-1l, " : "" + bridgeName + "_" + bridgeName + ", ";
-				ArrayList<String> assignmentVars = new ArrayList<String>();
-				if (traceableExpression(tree, assignmentVars) && tree.prefix == null) {
-//					tree.prefix = "" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.expr, tree.begin, tree.end) + "l, " + context + "\"\", ";
-//					tree.suffix = ")";
-				}
-				if (assignmentVars.size() > 0) {
-					StringBuffer buff = new StringBuffer();
-					for (String s: assignmentVars) {
-						buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.var, tree.begin, tree.end) + "l, " + context + "\"");
-						buff.append(s);
-						buff.append("\", ");
-						buff.append(s);
-						buff.append(");");
-					}
-					if (tree.parent != null && tree.parent.def.node.equals("StatementExpression ';'")) {
-						if (tree.parent.suffix != null) {
-							tree.parent.suffix += buff;
-						} else {
-							tree.parent.suffix = buff.toString();
-						}
-					}
-				}
-				if (typeField) {
-					return;
+			for (Tree t: tree.branches.get(2).branches) { // {TypeDeclaration}
+				if (t.branches.get(0) != null) { // ClassOrInterfaceDeclaration | ';'
+					insertDebugCode(t.branches.get(0)); 
 				}
 			}
 			
-		} else if (tree.def.parent.node.equals("BlockStatement")) { // BlockStatement: LocalVariableDeclarationStatement | ClassOrInterfaceDeclaration | [Identifier ':'] Statement
-
-			if (tree.branches.get(0) != null) { // LocalVariableDeclarationStatement: { VariableModifier } Type VariableDeclarators ';'
-				tree = tree.branches.get(0);
-				tree.prefix = " " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
-				Tree t = tree.branches.get(2); // VariableDeclarators: VariableDeclarator { ',' VariableDeclarator }
-				StringBuffer buff = new StringBuffer();
-				String var = t.branches.get(0).branches.get(0).node; // VariableDeclarator: Identifier VariableDeclaratorRest
-				if (t.branches.get(0).branches.get(1).branches.get(1).node.length() > 0) { // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
-					buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.var, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
-					buff.append(var);
-					buff.append("\", ");
-					buff.append(var);
-					buff.append(");");
-				}
-				t = t.branches.get(1);
-				for (Tree b: t.branches) {
-					var = b.branches.get(1).branches.get(0).node; // VariableDeclarator: Identifier VariableDeclaratorRest
-					if (t.branches.get(0).branches.get(1).branches.get(1).node.length() > 0) { // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
-						buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.var, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
-						buff.append(var);
-						buff.append("\", ");
-						buff.append(var);
-						buff.append(");");
-					}
-				}
-				tree.suffix = buff.toString();
-			} else if (tree.branches.size() > 2 && tree.branches.get(2) != null) { // [Identifier ':'] Statement
-				tree = tree.branches.get(2);
-				if (constructorCall(tree)) {
-					return;
-				} else {
-					tree.prefix = " " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
-				}
-			}
+		} else if (tree.def.parent.node.equals("ClassOrInterfaceDeclaration")) {
 			
-		} else if (tree.def.node.startsWith("'if'") && tree.def.branches.size() > 0) { // 'if' ParExpression Statement ['else' Statement]
-			
-			Tree t = tree.branches.get(2);
-			t.prefix = "{ " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
-			t.suffix = " }";
-			if (tree.branches.size() > 3 && tree.branches.get(3).node.length() > 0) {
-				t = tree.branches.get(3).branches.get(1);
-				t.prefix = "{ " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
-				t.suffix = " }";
-			}
-			
-		} else if (tree.def.node.startsWith("'for'") && tree.def.branches.size() > 0) { // 'for' '(' ForControl ')' Statement
-			
-			ArrayList<String> declaredVars = new ArrayList<String>();
-			Tree t = tree.branches.get(2).branches.get(0); // {VariableModifier} Type VariableDeclaratorId ForVarControlRest
-			if (t != null) {
-				Tree u = t.branches.get(2).branches.get(0);
-				declaredVars.add(u.node);
-				u = t.branches.get(3); // ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate] | ':' Expression
-				if (u.branches.get(0) != null) {
-					u = u.branches.get(0).branches.get(0); // [ '=' VariableInitializer ] { ',' VariableDeclarator }
-					u = u.branches.get(1);
-					for (Tree b: u.branches) {
-						declaredVars.add(b.branches.get(1).branches.get(0).node);
-					}
-				}
-			}
-			scope(tree);
-			StringBuffer buff = new StringBuffer();
-			for (String s: declaredVars) {
-				buff.append(" " + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.var, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
-				buff.append(s);
-				buff.append("\", ");
-				buff.append(s);
-				buff.append("); ");
-			}
-			t = tree.branches.get(4);
-			t.prefix = "{ " + buff + " " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
-			t.suffix = " } ";
-
-		} else if (tree.def.node.startsWith("'do'") && tree.def.branches.size() > 0) { // 'do' Statement 'while' ParExpression ';'
-			
-			Tree t = tree.branches.get(1);
-			t.prefix = "{ " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
-			t.suffix = " } ";
-			scope(tree);
-			
-		} else if (tree.def.node.startsWith("'while'") && tree.def.branches.size() > 0) { // 'while' ParExpression Statement
-			
-			Tree t = tree.branches.get(2);
-			t.prefix = "{ " + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, tree.begin, tree.end) + "l, " + bridgeName + "_" + bridgeName + "); ";
-			t.suffix = " } ";
-			scope(tree);
-			
-		} else if (tree.def.parent.node.equals("SwitchLabel")) { // case LABEL:
-			
-			return; // Do not instrument case labels.
-			
-		} else if (tree.def.node.equals("'return' [Expression] ';'") && tree.branches.get(1).node.length() > 0) { // return EXPRESSION;
-			
-			if (tree.branches.get(1).node.equals("Collections.emptyList()")) {
-				return;
-			}
-			
-		} else if (tree.def.node.equals("{Modifier}")) { // 'public', 'protected', 'private', 'final'
-			
-			boolean visibility = false;
-			for (Tree b: tree.branches) {
-				if (b.node.equals("protected") || b.node.equals("private")) {
-					if (!enumConstructor(tree) && !innerTypeOfAnonumousClass(tree)) {
-						b.prefix = "public";
-						b.hide = true;
-						visibility = true;
-					}
-				} else if (b.node.equals("public")) {
-					visibility = true;
-				} else if (b.node.equals("final")) { // Remove 'final' from instance type members without initialization.
-					if (!staticModifierPresent(tree) && fieldDeclarationWithoutInitializer(tree)) {
-						b.hide = true;
-					}
-				}
-			}
-			if (!visibility && !inlineClassDefinition(tree) &&
-					!enumConstructor(tree) && !innerTypeOfAnonumousClass(tree)) {
-				tree.parent.prefix = "public ";
-				if (tree.begin == tree.end) {
-					Tree t = tree.parent;
-					int i = 0;
-					for (; i < t.branches.size(); i++) {
-						if (t.branches.get(i) == tree) {
-							break;
-						}
-					}
-					tree.begin = t.branches.get(i + 1).begin;
-				}
-			}
-			
-		}
-
-		for (Tree b: tree.branches) {
-			if (b != null) {
-				insertDebugCode(b);
-			}
-		}
-	}
-	
-	private void block(Tree t, Tree params) {
-		String s = formalParameters(params);
-		boolean constructorCall = constructorCall(t); // Call to this() or super() constructor.
-		if (constructorCall) {
-			t.branches.get(1).branches.get(0).suffix = s + "{";
-		} else {
-			t.prefix = "{" + s;
-		}
-		t.suffix = " finally { " + bridgeName + "." + bridgeName + ".endscope(" + ann.annotation(Type.endscope, t.begin, t.end) + "l); } }";
-	}
-	
-	private boolean constructorCall(Tree t) {
-		if (t.branches.size() > 1 && t.branches.get(1).def.node.equals("{ BlockStatement }") && t.branches.get(1).branches.size() > 0) {
-			t = t.branches.get(1).branches.get(0); // LocalVariableDeclarationStatement | ClassOrInterfaceDeclaration | [Identifier ':'] Statement
-		}
-		if (t.def.node.equals("LocalVariableDeclarationStatement | ClassOrInterfaceDeclaration | [Identifier ':'] Statement") && t.branches.size() > 2 && t.branches.get(2) != null) {
-			t = t.branches.get(2);
-		}
-		if (t.def.node.equals("[Identifier ':'] Statement")) {
-			t = t.branches.get(1);
-		}
-		if (t.branches.size() > 3 && t.branches.get(3) != null) {
-			t = t.branches.get(3).branches.get(0); // StatementExpression ';' --> Expression1 [ AssignmentOperator Expression ]
-			t = t.branches.get(0).branches.get(0).branches.get(0);
-			if (t.branches.size() > 2 && t.branches.get(2) != null) {
-				t = t.branches.get(2); // Primary { Selector } { PostfixOp }
-				if (t.branches.get(1).node.length() == 0 && t.branches.get(2).node.length() == 0) {
-					t = t.branches.get(0);
-					if ((t.branches.size() > 2 && t.branches.get(2) != null) || // 'this' [Arguments]
-							(t.branches.size() > 3 && t.branches.get(3) != null)) { // 'super' SuperSuffix
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-
-	private String formalParameters(Tree t) {
-		String[] params = getListOfFormalParameters(t);
-		StringBuffer buff = new StringBuffer();
-		buff.append(" long " + bridgeName + "_" + bridgeName + " = " + bridgeName + "." + bridgeName + ".scope(" + ann.annotation(Type.scope, t.begin, t.end) + "l); ");
-		if (!isStatic(t)) {
-			buff.append("" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.arg, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + ", \"this\", this); ");
-		}
-		for (int i = 0; i < params.length; i++) {
-			buff.append("" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.arg, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + ", \"");
-			buff.append(params[i]);
-			buff.append("\", ");
-			buff.append(params[i]);
-			buff.append("); ");
-		}
-		buff.append("" + bridgeName + "." + bridgeName + ".step(" + ann.annotation(Type.step, t.begin, t.end) + "l, " + bridgeName + "_" + bridgeName + "); try ");
-		return buff.toString();
-	}
-	
-	private boolean isStatic(Tree t) {
-		if (t.parent != null && t.parent.parent != null &&
-				(t.parent.parent.def.node.equals("Identifier ConstructorDeclaratorRest") ||
-				 t.parent.parent.def.node.equals("'void' Identifier VoidMethodDeclaratorRest")) &&
-				t.parent.parent.parent != null && t.parent.parent.parent.parent != null &&
-				t.parent.parent.parent.parent.def.node.equals("{Modifier} MemberDecl")) {
-			return findStatic(t.parent.parent.parent.parent.branches.get(0));
-		}
-		if (t.parent != null && t.parent.parent != null &&
-				t.parent.parent.def.node.equals("FieldDeclaratorsRest ';' | MethodDeclaratorRest") &&
-				t.parent.parent.parent != null && t.parent.parent.parent.parent != null && t.parent.parent.parent.parent.parent != null &&
-				t.parent.parent.parent.parent.parent.def.node.equals("{Modifier} MemberDecl")) {
-			return findStatic(t.parent.parent.parent.parent.parent.branches.get(0));
-		}
-		if (t.parent != null && t.parent.parent != null &&
-				t.parent.parent.def.node.equals("(Type | 'void') Identifier MethodDeclaratorRest") &&
-				t.parent.parent.parent != null && t.parent.parent.parent.parent != null &&
-				t.parent.parent.parent.parent.def.parent.node.equals("GenericMethodOrConstructorDecl") &&
-				t.parent.parent.parent.parent.parent != null && t.parent.parent.parent.parent.parent.parent != null) {
-			return findStatic(t.parent.parent.parent.parent.parent.parent.branches.get(0));
-		}
-		if (t.parent != null && t.parent.def.node.equals("['static'] Block")) {
-			return t.parent.branches.get(0).node.length() != 0;
-		}
-		return false;
-	}
-	
-	private boolean findStatic(Tree t) {
-		for (Tree b: t.branches) {
-			if (b.node.equals("static")) {
-				return true;
-			}
-		}
-		return false;
-	}
-	
-	private String[] getListOfFormalParameters(Tree t) { // FormalParameters: '(' [FormalParameterDecls] ')'
-		if (!t.def.node.equals("'(' [FormalParameterDecls] ')'")) {
-			return new String[0];
-		}
-		ArrayList<String> l = new ArrayList<String>();
-		if (t.branches.get(1).node.length() > 0) {
-			while (true) {
-				t = t.branches.get(1); // FormalParameterDecls: {VariableModifier} Type FormalParameterDeclsRest
-				t = t.branches.get(2); // FormalParameterDeclsRest: VariableDeclaratorId [ ',' FormalParameterDecls ] | '...' VariableDeclaratorId
-				if (t.branches.get(0) != null) {
-					t = t.branches.get(0);
-					l.add(t.branches.get(0).branches.get(0).node);
-					if (t.branches.get(1).node.length() > 0) {
-						t = t.branches.get(1);
-					} else {
-						break;
-					}
-				} else {
-					t = t.branches.get(1);
-					l.add(t.branches.get(1).node);
-					break;
-				}
-			}
-		}
-		return l.toArray(new String[0]);
-	}
-
-	private boolean traceableExpression(Tree t, ArrayList<String> assignmentVars) { // Expression: Expression1 [ AssignmentOperator Expression ]
-		// Check whether this is a block statement. Block statements shouldn't be traced.
-		Tree v = t;
-		for (int count = 0; v.parent != null && count < 4; v = v.parent, count++);
-		boolean blockStatement = v.def.parent.node.equals("BlockStatement");
-			
-		Tree original = t;
-		if (t.branches.get(1).node.length() > 0) {
-			String name = t.branches.get(0).node;
-			boolean isIdentitifer = true;
-			for (int i = 0; i < name.length(); i++) {
-				if (!Character.isLetterOrDigit(name.charAt(i))) {
-					isIdentitifer = false;
-					break;
-				}
-			}
-			if (isIdentitifer) {
-				assignmentVars.add(name);
+			tree = tree.branches.get(1);
+			if (tree.branches.get(0) != null) {
+				insertDebugCode(tree.branches.get(0)); // ClassDeclaration
 			} else {
-				inspectField(t.branches.get(0));
+				insertDebugCode(tree.branches.get(1)); // InterfaceDeclaration
 			}
-			t = t.branches.get(1).branches.get(1);
-			traceableExpression(t, assignmentVars);
-			return false;
-		} else {
-			t = t.branches.get(0); // Expression1: Expression2 [ Expression1Rest ]
-			if (t.branches.get(1).node.length() == 0) { // Expression1Rest: '?' Expression ':' Expression1
-				t = t.branches.get(0); // Expression2: Expression3 [ Expression2Rest ]
-				if (t.branches.get(1).node.length() == 0) {
-					t = t.branches.get(0); // Expression3: PrefixOp Expression3 | '(' ( Type | Expression ) ')' Expression3 | Primary { Selector } { PostfixOp })
-					if (t.branches.size() > 2 && t.branches.get(2) != null) {
-						t = t.branches.get(2);
-						Tree u = t.branches.get(0).branches.get(0);
-						if (u != null) {
-							return false; // Literal
+			
+		} else if (tree.def.parent.node.equals("ClassDeclaration")) {
+			
+			if (tree.branches.get(0) != null) { // NormalClassDeclaration
+				insertDebugCode(tree.branches.get(0));
+			} else { // EnumDeclaration
+				insertDebugCode(tree.branches.get(1));
+			}
+			
+		} else if (tree.def.parent.node.equals("InterfaceDeclaration")) {
+			
+			if (tree.branches.get(0) != null) { // NormalInterfaceDeclaration
+				tree = tree.branches.get(4); // InterfaceBody
+				tree = tree.branches.get(1); // { InterfaceBodyDeclaration }
+				for (Tree t: tree.branches) {
+					if (t.branches.get(1) != null) { // {Modifier} InterfaceMemberDecl
+						t = t.branches.get(1).branches.get(1);
+						if (t.branches.get(3) != null) { // ClassDeclaration
+							insertDebugCode(t.branches.get(3));
+						} else if (t.branches.get(4) != null) { // InterfaceDeclaration
+							insertDebugCode(t.branches.get(4));
 						}
-						u = t.branches.get(0);
-						if (u.branches.size() > 7) {
-							u = u.branches.get(7);
-							if (u != null) { // Identifier { '.' Identifier } [IdentifierSuffix]
-								if (u.branches.size() > 2 && u.branches.get(2).node.length() > 0) {
-									return !original.parent.def.node.equals("StatementExpression ';'") && !blockStatement;
-								}
+					}
+				}
+			}
+			
+		} else if (tree.def.parent.node.equals("NormalClassDeclaration")) {
+			
+			insertDebugCode(tree.branches.get(5)); // ClassBody
+			
+		} else if (tree.def.parent.node.equals("EnumDeclaration")) {	
+			
+			if (tree.branches.get(1).node.length() > 0) {
+				insertDebugCode(tree.branches.get(1).branches.get(0)); // EnumConstant
+			}
+			for (Tree t: tree.branches.get(2).branches) { // { ',' EnumConstant }
+				insertDebugCode(t.branches.get(1));
+			}
+			if (tree.branches.get(4).node.length() > 0) { // [EnumBodyDeclarations]
+				tree = tree.branches.get(4).branches.get(0); // ';' {ClassBodyDeclaration}
+				tree = tree.branches.get(1);
+				for (Tree t: tree.branches) {
+					insertDebugCode(t);
+				}
+			}
+
+		} else if (tree.def.parent.node.equals("EnumConstant")) {	
+
+			if (tree.branches.get(3).node.length() > 0) { // [ClassBody]
+				insertDebugCode(tree.branches.get(3).branches.get(0));
+			}
+			
+		} else if (tree.def.parent.node.equals("ClassBody")) {	
+
+			tree = tree.branches.get(1); // { ClassBodyDeclaration }
+			for (Tree t: tree.branches) {
+				insertDebugCode(t);
+			}
+
+		} else if (tree.def.parent.node.equals("ClassBodyDeclaration")) {
+
+			if (tree.branches.get(1) != null) { // {Modifier} MemberDecl
+				insertDebugCode(tree.branches.get(1).branches.get(1)); // MemberDecl
+			} else if (tree.branches.get(2) != null) { // ['static'] Block
+				tree = tree.branches.get(2);
+				block(tree, null, null, tree.branches.get(1)); // No args.
+				insertDebugCode(tree.branches.get(1)); // Block
+			}
+
+		} else if (tree.def.parent.node.equals("MemberDecl")) {
+
+			Tree memberDecl = tree;
+			if (tree.branches.get(0) != null) { // MethodOrFieldDecl
+				tree = tree.branches.get(0).branches.get(2); // MethodOrFieldRest
+				if (tree.branches.get(0) != null) { // FieldDeclaratorsRest ';'
+					insertDebugCode(tree.branches.get(0).branches.get(0));
+				} else { // MethodDeclaratorRest
+					tree = tree.branches.get(1); // FormalParameters {'[' ']'} ['throws' QualifiedIdentifierList] (Block | ';')
+					method(memberDecl, tree.branches.get(0), tree.branches.get(2), tree.branches.get(3));
+				}
+			} else if (tree.branches.get(1) != null) { // 'void' Identifier VoidMethodDeclaratorRest
+				tree = tree.branches.get(1).branches.get(2); // FormalParameters ['throws' QualifiedIdentifierList] (Block | ';')
+				method(memberDecl, tree.branches.get(0), tree.branches.get(1), tree.branches.get(2));
+			} else if (tree.branches.get(2) != null) { // Identifier ConstructorDeclaratorRest
+				tree = tree.branches.get(2).branches.get(1); // FormalParameters ['throws' QualifiedIdentifierList] Block
+				method(memberDecl, tree.branches.get(0), tree.branches.get(1), tree.branches.get(2));
+			} else if (tree.branches.get(3) != null) { // GenericMethodOrConstructorDecl: TypeParameters GenericMethodOrConstructorRest
+				tree = tree.branches.get(3).branches.get(1); // (Type | 'void') Identifier MethodDeclaratorRest | Identifier ConstructorDeclaratorRest
+				if (tree.branches.get(0) != null) { // (Type | 'void') Identifier MethodDeclaratorRest
+					tree = tree.branches.get(0).branches.get(2); // FormalParameters {'[' ']'} ['throws' QualifiedIdentifierList] (Block | ';')
+					method(memberDecl, tree.branches.get(0), tree.branches.get(2), tree.branches.get(3));
+				} else { // Identifier ConstructorDeclaratorRest
+					tree = tree.branches.get(1).branches.get(1); // FormalParameters ['throws' QualifiedIdentifierList] Block
+					method(memberDecl, tree.branches.get(0), tree.branches.get(1), tree.branches.get(2));
+				}
+			} else if (tree.branches.get(4) != null) { // ClassDeclaration
+				insertDebugCode(tree.branches.get(4));
+			} else if (tree.branches.get(5) != null) { // InterfaceDeclaration
+				insertDebugCode(tree.branches.get(5));
+			}
+			
+		} else if (tree.def.parent.node.equals("FieldDeclaratorsRest")) {
+
+			// TODO
+			
+		} else if (tree.def.parent.node.equals("Block")) {
+
+			for (Tree t: tree.branches.get(1).branches) { // '{' BlockStatements '}'
+				insertDebugCode(t); // BlockStatement
+			}
+
+		} else if (tree.def.parent.node.equals("ArrayInitializer")) {
+
+			// TODO
+			
+		} else if (tree.def.parent.node.equals("BlockStatement")) {
+
+			if (tree.branches.get(0) != null) { // LocalVariableDeclarationStatement
+				
+			} else if (tree.branches.get(1) != null) { // ClassOrInterfaceDeclaration
+				insertDebugCode(tree.branches.get(1));
+			} else { // [Identifier ':'] Statement
+				tree = tree.branches.get(2).branches.get(1);
+				/*
+				 * Statement: (
+				 * Block |
+				 * ';' |
+				 * Identifier ':' Statement |
+				 * StatementExpression ';' |
+				 * 'if' ParExpression Statement ['else' Statement] |
+				 * 'assert' Expression [':' Expression] ';' |
+				 * 'switch' ParExpression '{' SwitchBlockStatementGroups '}' |
+				 * 'while' ParExpression Statement |
+				 * 'do' Statement 'while' ParExpression ';' |
+				 * 'for' '(' ForControl ')' Statement |
+				 * 'break' [Identifier] ';' |
+				 * 'continue' [Identifier] ';' |
+				 * 'return' [Expression] ';' |
+				 * 'throw' Expression ';' |
+				 * 'synchronized' ParExpression Block |
+				 * 'try' Block ( [Catches] Finally | Catches ) |
+				 * 'try' ResourceSpecification Block [Catches] [Finally])
+				 */
+				if (tree.branches.get(0) != null) { // Block
+					insertDebugCode(tree.branches.get(0));
+				} else if (tree.branches.get(1) != null) { // ';'
+					return;
+				} else if (tree.branches.get(2) != null) { // Identifier ':' Statement
+					insertDebugCode(tree.branches.get(2));
+				} else if (tree.branches.get(3) != null) { // StatementExpression ';'
+					expression(tree.branches.get(0)); // StatementExpression: Expression
+				} else if (tree.branches.get(4) != null) { // 'if' ParExpression Statement ['else' Statement]
+					tree = tree.branches.get(4);
+					insertDebugCode(tree.branches.get(1).branches.get(1)); // ParExpression: '(' Expression ')'
+					insertDebugCode(tree.branches.get(2));
+					if (tree.branches.get(3).node.length() > 0) {
+						insertDebugCode(tree.branches.get(3).branches.get(1));
+					}
+				} else if (tree.branches.get(5) != null) { // 'assert' Expression [':' Expression] ';'
+					tree = tree.branches.get(5);
+					insertDebugCode(tree.branches.get(1));
+					if (tree.branches.get(2).node.length() > 0) {
+						insertDebugCode(tree.branches.get(2).branches.get(1));
+					}
+				} else if (tree.branches.get(6) != null) { // 'switch' ParExpression '{' SwitchBlockStatementGroups '}'
+					tree = tree.branches.get(6);
+					insertDebugCode(tree.branches.get(1));
+					tree = tree.branches.get(3); // { SwitchBlockStatementGroup }
+					for (Tree t: tree.branches) { // SwitchLabels BlockStatements
+						insertDebugCode(t.branches.get(1));
+					}
+				} else if (tree.branches.get(7) != null) { // 'while' ParExpression Statement
+					// TODO BLOCK
+					tree = tree.branches.get(7);
+					insertDebugCode(tree.branches.get(1).branches.get(1));
+					insertDebugCode(tree.branches.get(2));
+				} else if (tree.branches.get(8) != null) { // 'do' Statement 'while' ParExpression ';'
+					// TODO BLOCK
+					tree = tree.branches.get(8);
+					insertDebugCode(tree.branches.get(1));
+					insertDebugCode(tree.branches.get(3).branches.get(1));
+				} else if (tree.branches.get(9) != null) { // 'for' '(' ForControl ')' Statement
+					// TODO BLOCK
+					tree = tree.branches.get(9); // ForVarControl | [ForInit] ';' [Expression] ';' [ForUpdate]
+					if (tree.branches.get(0) != null) {
+						tree = tree.branches.get(0); // {VariableModifier} Type VariableDeclaratorId ForVarControlRest
+						tree = tree.branches.get(3); // ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate] | ':' Expression
+						if (tree.branches.get(0) != null) {
+							tree = tree.branches.get(0); // ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate]
+							if (tree.branches.get(0).node.length() > 0) { // [ '=' VariableInitializer ] { ',' VariableDeclarator }
+								insertDebugCode(tree.branches.get(0).branches.get(1));
 							}
-						} else if (u.branches.size() > 2 && u.branches.get(2) != null) { // 'this' [Arguments]
-							return false;
-						} else if (u.branches.size() > 3 && u.branches.get(3) != null) { // 'super' SuperSuffix
-							return false;
+						} else {
+							tree = tree.branches.get(1); // ':' Expression
+							// TODO
+						}
+					} else {
+						tree = tree.branches.get(1); // [ForInit] ';' [Expression] ';' [ForUpdate]
+						// TODO
+					}
+				} else if (tree.branches.get(10) != null) { // 'break' [Identifier] ';'
+					tree.prefix = step(tree) + "; ";
+				} else if (tree.branches.get(11) != null) { // 'continue' [Identifier] ';'
+					tree.prefix = step(tree) + "; ";
+				} else if (tree.branches.get(12) != null) { // 'return' [Expression] ';'
+					tree = tree.branches.get(12);
+					if (tree.branches.get(1).node.length() > 0) {
+						insertDebugCode(tree.branches.get(1));
+					} else {
+						tree.prefix = step(tree) + "; ";
+					}
+				} else if (tree.branches.get(13) != null) { // 'throw' Expression ';'
+					tree = tree.branches.get(13);
+					if (tree.branches.get(1).node.length() > 0) {
+						insertDebugCode(tree.branches.get(1));
+					}
+				} else if (tree.branches.get(14) != null) { // 'synchronized' ParExpression Block
+					tree = tree.branches.get(14);
+					insertDebugCode(tree.branches.get(1).branches.get(1)); // ParExpression: '(' Expression ')'
+					insertDebugCode(tree.branches.get(2));
+				} else if (tree.branches.get(15) != null) { // 'try' Block ( [Catches] Finally | Catches )
+					tree = tree.branches.get(15);
+					insertDebugCode(tree.branches.get(1));
+					tree = tree.branches.get(2);
+					Tree catches;
+					if (tree.branches.get(0) != null) { // [Catches] Finally
+						catches = tree.branches.get(0).branches.get(0);
+					} else { // CatchClause { CatchClause }
+						catches = tree.branches.get(1);
+					}
+					if (catches.node.length() > 0) { // CatchClause { CatchClause }
+						// CatchClause: 'catch' '(' {VariableModifier} CatchType Identifier ')' Block
+						insertDebugCode(tree.branches.get(0).branches.get(6));
+						for (Tree t: tree.branches.get(1).branches) {
+							insertDebugCode(t.branches.get(6));
 						}
 					}
-				}
-			}
-		}
-		return !blockStatement;
-	}
-
-	private void scope(Tree t) {
-		while (t.parent != null && t.parent.parent != null && t.parent.parent.def.node.equals("Identifier ':' Statement")) {
-			t = t.parent.parent; // Statement: Block | ';' | Identifier ':' Statement | ...
-		}
-		if (t.parent != null && t.parent.parent != null && t.parent.parent.def.node.equals("[Identifier ':'] Statement") && t.parent.parent.branches.get(0).node.length() > 0) {
-			t = t.parent.parent; // [Identifier ':'] Statement
-		}
-		if (t.prefix == null) {
-			t.prefix = "";
-		}
-		t.prefix += "" + bridgeName + "_" + bridgeName + " = " + bridgeName + "." + bridgeName + ".scope(" + ann.annotation(Type.scope, t.begin, t.end) + "l); try { ";
-		if (t.suffix == null) {
-			t.suffix = "";
-		}
-		t.suffix += " } finally { " + bridgeName + "_" + bridgeName + " = " + bridgeName + "." + bridgeName + ".endscope(" + ann.annotation(Type.endscope, t.begin, t.end) + "l); } ";
-	}
-
-	private void inspectField(Tree t) {
-		Tree original = t;
-		if (t.def.node.equals("Expression2 [ Expression1Rest ]")) {
-			t = t.branches.get(0).branches.get(0);
-			if (t.branches.size() > 2 && t.branches.get(2) != null) {
-				t = t.branches.get(2); // Primary { Selector } { PostfixOp }
-				if (t.branches.get(1).node.length() > 0 && t.branches.get(2).node.length() == 0) {
-					Tree u = t.branches.get(1); // { Selector }
-					Tree last = u.branches.get(u.branches.size() - 1);
-					Tree prev = t.branches.get(0);
-					if (u.branches.size() > 1) {
-						prev = u.branches.get(u.branches.size() - 2);
+					if (tree.branches.get(0) != null) { // [Catches] Finally
+						insertDebugCode(tree.branches.get(0).branches.get(1).branches.get(1)); // Block
 					}
-					if (last.branches.get(0) != null) {
-						last = last.branches.get(0); // '.' Identifier [Arguments]
-						if (last.branches.get(2).node.length() == 0) {
-							t.prefix = "" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.obj, t.begin, prev.end) + "l, " + bridgeName + "_" + bridgeName + ", \"\", ";
-							prev.suffix = ")";
-							String fieldName = last.branches.get(1).node;
-							if (original.parent.def.node.equals("Expression1 [ AssignmentOperator Expression ]") &&
-									original.parent.branches.get(1).node.length() > 0) {
-								Tree v = original.parent.branches.get(1).branches.get(1);
-								String prefix = "" + bridgeName + "." + bridgeName + "." + bridgeName + "(" + ann.annotation(Type.field, v.begin, v.end) + "l, " + bridgeName + "_" + bridgeName + ", \"" + fieldName + "\", ";
-								if (v.prefix == null) {
-									v.prefix = prefix;
-									v.suffix = ")";
-								} else {
-									v.prefix += prefix;
-									v.suffix += ")";
-								}
-							}
+				} else { // 'try' ResourceSpecification Block [Catches] [Finally])
+					tree = tree.branches.get(16);
+					Tree res = tree.branches.get(1); // '(' Resources [';'] ')'
+					res = res.branches.get(1); // Resource { ';' Resource }
+					// Resource: {VariableModifier} ReferenceType VariableDeclaratorId '=' Expression
+					insertDebugCode(res.branches.get(0).branches.get(4));
+					for (Tree t: res.branches.get(1).branches) {
+						insertDebugCode(t.branches.get(1).branches.get(4));
+					}
+					insertDebugCode(tree.branches.get(2)); // Block
+					if (tree.branches.get(3).node.length() > 0) { // [Catches]
+						Tree catches = tree.branches.get(3); // CatchClause { CatchClause }
+						// CatchClause: 'catch' '(' {VariableModifier} CatchType Identifier ')' Block
+						insertDebugCode(catches.branches.get(0).branches.get(6));
+						for (Tree t: catches.branches.get(1).branches) {
+							insertDebugCode(t.branches.get(6));
 						}
 					}
+					if (tree.branches.get(4).node.length() > 0) { // [Finally]
+						insertDebugCode(tree.branches.get(4).branches.get(1)); // Block
+					}
 				}
 			}
+			
 		}
 	}
+	
+	/**
+	 * Inserts debug code in an expression.
+	 * @param t the expression tree.
+	 */
+	private void expression(Tree t) {
+		
+	}
 
-	private boolean typeField(Tree t) {
-		Tree u = t.parent;
-		for (int count = 0; u != null && count < 4; u = u.parent, count++) {
-			if (u != null && u.def.node.equals("ConstantDeclaratorsRest ';'")) {
-				return true;
+	/**
+	 * Enters a section of executable code -- method, constructor or initializer block.
+	 * Methods and constructors have argument and exception lists while initializer blocks
+	 * don't have ones, so they may be null.
+	 * @param memberDecl the root definition that uses the given block section. 
+	 * @param args a reference to the argument list or null if we are entering an initializer.
+	 * @param exceptions a reference to the exception list or null if we are entering an initializer.
+	 * @param block the block of executable code; it may be (Block | ';') which is common
+	 *   for different method declarations, i.e. may denote a method without a body in which
+	 *   case we have nothing to do.
+	 */
+	private void method(Tree memberDecl, Tree args, Tree exceptions, Tree block) {
+		if (block.def.node.equals("(Block | ';')")) {
+			if (block.branches.get(0) == null) {
+				return;
+			}
+			block = block.branches.get(0);
+		}
+		if (exceptions != null) { 
+			if (exceptions.node.length() > 0) { // ['throws' QualifiedIdentifierList]
+				exceptions = exceptions.branches.get(1);
+			} else {
+				exceptions = null;
 			}
 		}
-		if (u != null && u.def.node.equals("FieldDeclaratorsRest ';'")) {
-			return true;
-		}
-		return false;
+		block(memberDecl, args, exceptions, block); // Mark entering and exiting from the block.
+		insertDebugCode(block); // Continue with the statements in the block.
 	}
-
-	private boolean staticModifierPresent(Tree t) {
-		for (Tree b: t.branches) {
-			if (b.node.equals("static")) {
-				return true;
-			}
+	
+	/**
+	 * Appends entering and exiting scope code for the given block.
+	 * @param memberDecl the root definition that uses the given block section. 
+	 * @param args a reference to the arguments if we are entering a constructor or a method;
+	 *   initializer blocks have args=null.
+	 * @param exceptions a reference to the exception list if we are entering a constructor or
+	 *   a method wit declared 'throws' clause; initializer blocks have exceptions=null.
+	 * @param block a reference to a block of instructions.
+	 */
+	private void block(Tree memberDecl, Tree args, Tree exceptions, Tree block) { // Block: '{' BlockStatements '}'
+		String scopeVar = scopeVar();
+		StringBuffer buff = new StringBuffer();
+		scopeArgs(memberDecl, block, scopeVar, "" , buff); // Insert inspection code for 'this' for current and wrapping classes.
+		if (args != null && args.branches.get(1).node.length() > 0) { // '(' [FormalParameterDecls] ')'
+			visitArgs(args.branches.get(1), scopeVar, buff); // FormalParameterDecls
 		}
-		return false;
+		getAppropriateBranch(block).suffix = enterScope(block, scopeVar, buff.toString());
+		block.branches.get(2).prefix = endScope(exceptions, block, scopeVar);
 	}
-
-	private boolean fieldDeclarationWithoutInitializer(Tree t) {
-		if (t.parent.def.node.equals("{Modifier} MemberDecl")) {
-			t = t.parent.branches.get(1);
-			if (t.branches.get(0) != null) {
-				t = t.branches.get(0); // MethodOrFieldDecl: Type Identifier MethodOrFieldRest
-				t = t.branches.get(2); // MethodOrFieldRest: FieldDeclaratorsRest ';' | MethodDeclaratorRest
-				if (t.branches.get(0) != null) {
-					t = t.branches.get(0).branches.get(0); // FieldDeclaratorsRest: VariableDeclaratorRest { ',' VariableDeclarator }
-					t = t.branches.get(0); // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
-					return t.branches.get(1).node.length() == 0;
+	
+	/**
+	 * Inserts inspection code for 'this' for current and wrapping classes.
+	 * @param memberDecl the root definition that uses the given block section. 
+	 * @param block a reference to a block of instructions.
+	 * @param scopeVar the name of the variable which holds the runtime info for the current scope.
+	 * @param buff a string buffer where the inspection code will be accumulated.
+	 */
+	private void scopeArgs(Tree memberDecl, Tree block, String scopeVar, String className, StringBuffer buff) {
+		if (memberDecl.parent.def.node.equals("{Modifier} MemberDecl")) {
+			memberDecl = memberDecl.parent;
+			for (Tree t: memberDecl.branches.get(0).branches) {
+				if (t.node.equals("static")) {
+					return; // A static context does not have reference to 'this'.
 				}
 			}
+		} else if (memberDecl.def.node.equals("['static'] Block") &&
+				memberDecl.branches.get(0).node.length() > 0) {
+			return; // A static context does not have reference to 'this'.
 		}
-		return false;
-	}
-
-	private boolean inlineClassDefinition(Tree t) {
-		return t.parent != null && t.parent.parent != null && t.parent.parent.parent != null &&
-				t.parent.parent.parent.def.node.equals("{ BlockStatement }");
-	}
-
-	private boolean enumConstructor(Tree t) {
-		if (t.parent != null && t.parent.def.node.equals("{Modifier} MemberDecl") &&
-				t.parent.branches.get(1).branches.size() > 2 && t.parent.branches.get(1).branches.get(2) != null &&
-						t.parent.branches.get(1).branches.get(2).def.node.equals("Identifier ConstructorDeclaratorRest")) {
-			for (int i = 0; i < 6; i++) {
-				if (t.parent == null) {
-					return false;
-				}
+		
+		variableId(className + "this", "arg", scopeVar, buff);
+		
+		do {
+			memberDecl = memberDecl.parent;
+		} while (memberDecl.parent != null && !memberDecl.parent.def.node.equals("{Modifier} MemberDecl") &&
+				!memberDecl.parent.def.node.equals("['static'] Block"));
+		if (memberDecl.parent != null) {
+			Tree t = memberDecl;
+			while (t != null && !t.def.parent.node.equals("NormalClassDeclaration") &&
+					!t.def.parent.node.equals("EnumDeclaration") &&
+					!t.def.parent.node.equals("NormalInterfaceDeclaration")) {
 				t = t.parent;
 			}
-			return t != null && t.def.parent.node.equals("EnumDeclaration");
-		} else {
-			return false;
+			className = t.branches.get(1).node + '.' + className;
+			scopeArgs(memberDecl, block, scopeVar, className, buff);
 		}
 	}
 
-	private boolean innerTypeOfAnonumousClass(Tree t) {
-		if (t.parent.def.node.equals("{Modifier} MemberDecl")) {
-			t = t.parent.branches.get(1);
-			if ((t.branches.size() > 4 && t.branches.get(4) != null) ||
-					(t.branches.size() > 5 && t.branches.get(5) != null)) { // Class or interface declaration.
-				for (int i = 0; i < 5; i++) {
-					if (t.parent == null) {
-						return false;
+	/**
+	 * Chooses a parse tree branch after which to generate the code for entering a scope.
+	 * Usually this is the branch with opening curly bracket but in case of
+	 * entering a constructor which calls another constructor from the same
+	 * class -- this(...), or a superclass -- super(...), placing a code
+	 * before the constructor call makes the Java code uncompilable because
+	 * the call to the constructor should be the first statement in the block.
+	 * This case is simply detected by peeking the first block statement
+	 * and testing whether it is a call to 'this' or 'super'.
+	 * 
+	 * @param block a reference to a block of instructions.
+	 * @return the branch of the tree where it is appropriate to place debug code --
+	 *   the curly bracket of the block or the first block statement if it
+	 *   is a call to 'this' or 'super'.
+	 */
+	private Tree getAppropriateBranch(Tree block) { // Block: '{' BlockStatements '}'
+		Tree t = block.branches.get(1);
+		if (t.branches.size() > 0) {
+			t = t.branches.get(0); // LocalVariableDeclarationStatement | ClassOrInterfaceDeclaration | [Identifier ':'] Statement
+			if (t.branches.size() == 3 && t.branches.get(2) != null) {
+				t = t.branches.get(2).branches.get(1);
+				/*
+				 * Statement: (
+				 * Block |
+				 * ';' |
+				 * Identifier ':' Statement |
+				 * StatementExpression ';' |
+				 * 'if' ParExpression Statement ['else' Statement] |
+				 * 'assert' Expression [':' Expression] ';' |
+				 * 'switch' ParExpression '{' SwitchBlockStatementGroups '}' |
+				 * 'while' ParExpression Statement |
+				 * 'do' Statement 'while' ParExpression ';' |
+				 * 'for' '(' ForControl ')' Statement |
+				 * 'break' [Identifier] ';' |
+				 * 'continue' [Identifier] ';' |
+				 * 'return' [Expression] ';' |
+				 * 'throw' Expression ';' |
+				 * 'synchronized' ParExpression Block |
+				 * 'try' Block ( [Catches] Finally | Catches ) |
+				 * 'try' ResourceSpecification Block [Catches] [Finally])
+				 */
+				if (t.branches.size() == 4 && t.branches.get(3) != null) {
+					t = t.branches.get(3).branches.get(0); // Expression1 [ AssignmentOperator Expression ]
+					if (t.branches.get(1).node.length() == 0) { // No assignment.
+						t = t.branches.get(0); // Expression2 [ Expression1Rest ]
+						if (t.branches.get(1).node.length() == 0) { // No triple operator.
+							t = t.branches.get(0); // Expression3 [ Expression2Rest ]
+							if (t.branches.get(1).node.length() == 0) { // No 'instanceof' and infix operator.
+								t = t.branches.get(0); // PrefixOp Expression3 | '(' ( Type | Expression ) ')' Expression3 | Primary { Selector } { PostfixOp }
+								if (t.branches.size() == 3 && t.branches.get(2) != null) {
+									t = t.branches.get(2); // Primary { Selector } { PostfixOp }
+									if (t.branches.get(1).branches.size() == 0 &&
+											t.branches.get(2).branches.size() == 0)	{ // No selector and postfix operator.
+										t = t.branches.get(0);
+										/*
+										 * Primary: (
+										 * Literal |
+										 * ParExpression |
+										 * 'this' [Arguments] |
+										 * 'super' SuperSuffix |
+										 * 'new' Creator |
+										 * NonWildcardTypeArguments ( ExplicitGenericInvocationSuffix | 'this' Arguments ) |
+										 * Type '.' 'class' |
+										 * Identifier { '.' Identifier } [IdentifierSuffix] |
+										 * 'void' '.' 'class')
+										 */
+										if (t.branches.size() == 3 && t.branches.get(2) != null) { // 'this' [Arguments]
+											t = t.branches.get(2);
+											if (t.branches.get(1).node.length() > 0) { // Call to this(...).
+												return block.branches.get(1).branches.get(0); // Place the debug code after the first block statement.
+											}
+										}
+										if (t.branches.size() == 4 && t.branches.get(3) != null) { // 'super' SuperSuffix
+											t = t.branches.get(3).branches.get(1); // Arguments | '.' Identifier [Arguments]
+											if (t.branches.get(0) != null) { // Call to super(...).
+												return block.branches.get(1).branches.get(0); // Place the debug code after the first block statement.
+											}
+										}
+									}
+								}
+							}
+						}
 					}
-					t = t.parent;
-				}
-				if (t.def.node.equals("Arguments [ClassBody]")) {
-					return true;
 				}
 			}
 		}
-		return false;
+		return block.branches.get(0); // Place the debug code after the opening curly bracket.
 	}
 	
-	public ParseTree getParseTree() {
-		return parseTree;
+	private void visitArgs(Tree args, String scopeVar, StringBuffer buff) {
+		if (args.def.parent.node.equals("FormalParameterDecls")) { // {VariableModifier} Type FormalParameterDeclsRest
+			visitArgs(args.branches.get(2), scopeVar, buff);
+		} else if (args.def.parent.node.equals("FormalParameterDeclsRest")) { // VariableDeclaratorId [ ',' FormalParameterDecls ] | '...' VariableDeclaratorId
+			if (args.branches.get(0) != null) {
+				args = args.branches.get(0);
+				variableId(args.branches.get(0).node, "arg", scopeVar, buff);
+				if (args.branches.get(1).node.length() > 0) {
+					visitArgs(args.branches.get(1).branches.get(1), scopeVar, buff); // FormalParameterDecls
+				}
+			} else {
+				variableId(args.branches.get(1).branches.get(1).node, "arg", scopeVar, buff);
+			}
+		}
+	}
+	
+	/**
+	 * Appends to buff an inspection code of the given tree node which should be
+	 * an identifier, e.g. an argument to a constructor/method or variable declaration.
+	 * @param variable the name of the variable to be inspected.
+	 * @param bridgeFunction the function that inspects the given identifier, e.g. arg() for
+	 *   an argument to a constructor/method or var() for a local variable.
+	 * @param buff a string buffer where the result will be written.
+	 */
+	private void variableId(String variable, String bridgeFunction, String scopeVar, StringBuffer buff) {
+		buff.append(' ');
+		buff.append(bridge());
+		buff.append('.');
+		buff.append(bridgeFunction);
+		buff.append('(');
+		buff.append(scopeVar);
+		buff.append(", ");
+		buff.append(ann.getIdentifierId(variable));
+		buff.append(", ");
+		buff.append(variable);
+		buff.append(");");
+	}
+	
+	private String enterScope(Tree block, String scopeVar, String args) { // Block: '{' BlockStatements '}'
+		return " long " + scopeVar + " = " + bridge() + ".scope(" +
+			ann.annotation(Type.scope, block.branches.get(0).begin, block.branches.get(0).end) + "l);" + args + " try {";
+	}
+	
+	private String endScope(Tree exceptions, Tree block, String scopeVar) { // Block: '{' BlockStatements '}'
+		long annotation = ann.annotation(Type.endscope, block.branches.get(2).begin, block.branches.get(2).end);
+		StringBuffer buff = new StringBuffer();
+		boolean hasRuntimeExceptionInList = false;
+		boolean hasErrorInList = false;
+		if (exceptions != null) { // QualifiedIdentifierList: QualifiedIdentifier { ',' QualifiedIdentifier }
+			String exc = exceptions.branches.get(0).node;
+			if (!hasRuntimeExceptionInList && (exc.equals("RuntimeException") || exc.equals("java.lang.RuntimeException") || exc.equals("Exception") || exc.equals("java.lang.Exception") || exc.equals("Throwable") || exc.equals("java.lang.Throwable"))) {
+				hasRuntimeExceptionInList = true;
+			}
+			if (!hasErrorInList && (exc.equals("Error") || exc.equals("java.lang.Error") || exc.equals("throwable") || exc.equals("Throwable") || exc.equals("java.lang.Throwable"))) {
+				hasErrorInList = true;
+			}
+			exception(block, exc, scopeVar, buff);
+			for (Tree t: exceptions.branches.get(1).branches) {
+				exception(block, t.branches.get(1).node, scopeVar, buff);
+			}
+		}
+		if (!hasRuntimeExceptionInList) {
+			exception(block, "RuntimeException", scopeVar, buff);
+		}
+		if (!hasErrorInList) {
+			exception(block, "Error", scopeVar, buff);
+		}
+		return "}" + buff + " finally { " + bridge() + ".endScope(" + annotation + "l, " + scopeVar + "); } ";
+	}
+	
+	private void exception(Tree block, String exception, String scopeVar, StringBuffer buff) {
+		String exceptionVar = bridgeName + '_' + bridgeName + "_ex";
+		long annotation = ann.annotation(Type.exception, block.branches.get(2).begin, block.branches.get(2).end);
+		buff.append(" catch (");
+		buff.append(exception);
+		buff.append(' ');
+		buff.append(exceptionVar);
+		buff.append(") { ");
+		buff.append(bridge());
+		buff.append(".exception(");
+		buff.append(annotation);
+		buff.append("l, ");
+		buff.append(scopeVar);
+		buff.append(", ");
+		buff.append(exceptionVar);
+		buff.append("); throw ");
+		buff.append(exceptionVar);
+		buff.append("; }");
+	}
+
+	private String scopeVar() {
+		return bridgeName + "_" + bridgeName;
+	}
+	
+	private String bridge() {
+		return bridgeName + '.' + bridgeName;
+	}
+	
+	private String step(Tree t) {
+		return bridge() + ".step(" + ann.annotation(Type.step, t.begin, t.end) + ", " + scopeVar() + ')';
 	}
 	
 }
