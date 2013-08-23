@@ -1,6 +1,7 @@
 package codegen;
 
 import codegen.Annotations.Type;
+import bnf.NodeType;
 import bnf.ParseTree;
 import bnf.Tree;
 
@@ -22,7 +23,7 @@ public class DebugCodeInserter {
 	}
 
 	private void insertDebugCode(Tree tree) {
-		if (tree.def.parent.node.equals("CompilationUnit")) {
+		if (tree.def.parent.node.equals("CompilationUnit")) { // [ [Annotations] 'package' QualifiedIdentifier ';' ] {ImportDeclaration} {TypeDeclaration}
 			
 			for (Tree t: tree.branches.get(2).branches) { // {TypeDeclaration}
 				if (t.branches.get(0) != null) { // ClassOrInterfaceDeclaration | ';'
@@ -30,7 +31,7 @@ public class DebugCodeInserter {
 				}
 			}
 			
-		} else if (tree.def.parent.node.equals("ClassOrInterfaceDeclaration")) {
+		} else if (tree.def.parent.node.equals("ClassOrInterfaceDeclaration")) { // {Modifier} (ClassDeclaration | InterfaceDeclaration)
 			
 			tree = tree.branches.get(1);
 			if (tree.branches.get(0) != null) {
@@ -39,7 +40,7 @@ public class DebugCodeInserter {
 				insertDebugCode(tree.branches.get(1)); // InterfaceDeclaration
 			}
 			
-		} else if (tree.def.parent.node.equals("ClassDeclaration")) {
+		} else if (tree.def.parent.node.equals("ClassDeclaration")) { // NormalClassDeclaration | EnumDeclaration
 			
 			if (tree.branches.get(0) != null) { // NormalClassDeclaration
 				insertDebugCode(tree.branches.get(0));
@@ -47,7 +48,7 @@ public class DebugCodeInserter {
 				insertDebugCode(tree.branches.get(1));
 			}
 			
-		} else if (tree.def.parent.node.equals("InterfaceDeclaration")) {
+		} else if (tree.def.parent.node.equals("InterfaceDeclaration")) { // NormalInterfaceDeclaration | AnnotationTypeDeclaration
 			
 			if (tree.branches.get(0) != null) { // NormalInterfaceDeclaration
 				tree = tree.branches.get(4); // InterfaceBody
@@ -64,11 +65,11 @@ public class DebugCodeInserter {
 				}
 			}
 			
-		} else if (tree.def.parent.node.equals("NormalClassDeclaration")) {
+		} else if (tree.def.parent.node.equals("NormalClassDeclaration")) { // 'class' Identifier [TypeParameters] ['extends' Type] ['implements' TypeList] ClassBody
 			
 			insertDebugCode(tree.branches.get(5)); // ClassBody
 			
-		} else if (tree.def.parent.node.equals("EnumDeclaration")) {	
+		} else if (tree.def.parent.node.equals("EnumDeclaration")) { // 'enum' Identifier ['implements' TypeList] EnumBody	
 			
 			if (tree.branches.get(1).node.length() > 0) {
 				insertDebugCode(tree.branches.get(1).branches.get(0)); // EnumConstant
@@ -84,20 +85,20 @@ public class DebugCodeInserter {
 				}
 			}
 
-		} else if (tree.def.parent.node.equals("EnumConstant")) {	
+		} else if (tree.def.parent.node.equals("EnumConstant")) { // [Annotations] Identifier [Arguments] [ClassBody]	
 
 			if (tree.branches.get(3).node.length() > 0) { // [ClassBody]
 				insertDebugCode(tree.branches.get(3).branches.get(0));
 			}
 			
-		} else if (tree.def.parent.node.equals("ClassBody")) {	
+		} else if (tree.def.parent.node.equals("ClassBody")) { // '{' { ClassBodyDeclaration } '}'	
 
 			tree = tree.branches.get(1); // { ClassBodyDeclaration }
 			for (Tree t: tree.branches) {
 				insertDebugCode(t);
 			}
 
-		} else if (tree.def.parent.node.equals("ClassBodyDeclaration")) {
+		} else if (tree.def.parent.node.equals("ClassBodyDeclaration")) { // ';' | {Modifier} MemberDecl | ['static'] Block
 
 			if (tree.branches.get(1) != null) { // {Modifier} MemberDecl
 				insertDebugCode(tree.branches.get(1).branches.get(1)); // MemberDecl
@@ -111,7 +112,7 @@ public class DebugCodeInserter {
 
 			Tree memberDecl = tree;
 			if (tree.branches.get(0) != null) { // MethodOrFieldDecl
-				tree = tree.branches.get(0).branches.get(2); // MethodOrFieldRest
+				tree = tree.branches.get(0).branches.get(2); // MethodOrFieldRest: FieldDeclaratorsRest ';' | MethodDeclaratorRest
 				if (tree.branches.get(0) != null) { // FieldDeclaratorsRest ';'
 					insertDebugCode(tree.branches.get(0).branches.get(0));
 				} else { // MethodDeclaratorRest
@@ -139,9 +140,14 @@ public class DebugCodeInserter {
 				insertDebugCode(tree.branches.get(5));
 			}
 			
-		} else if (tree.def.parent.node.equals("FieldDeclaratorsRest")) {
+		} else if (tree.def.parent.node.equals("FieldDeclaratorsRest")) { // VariableDeclaratorRest { ',' VariableDeclarator }
 
-			// TODO
+			if (tree.branches.get(0).branches.get(1).node.length() > 0) { // VariableDeclaratorRest: {'[' ']'} [ '=' VariableInitializer ]
+				insertDebugCode(tree.branches.get(0).branches.get(1).branches.get(1)); // VariableInitializer
+			}
+			for (Tree t: tree.branches.get(1).branches) {
+				insertDebugCode(t.branches.get(1)); // VariableDeclarator
+			}
 			
 		} else if (tree.def.parent.node.equals("Block")) {
 
@@ -149,156 +155,212 @@ public class DebugCodeInserter {
 				insertDebugCode(t); // BlockStatement
 			}
 
-		} else if (tree.def.parent.node.equals("ArrayInitializer")) {
+		} else if (tree.def.parent.node.equals("VariableInitializer")) { // ArrayInitializer | Expression
 
-			// TODO
+			if (tree.branches.get(0) != null) { // ArrayInitializer
+				tree = tree.branches.get(0); // '{' [ VariableInitializer { ',' VariableInitializer } [','] ] '}'
+				tree = tree.branches.get(1);
+				insertDebugCode(tree.branches.get(0));
+				for (Tree t: tree.branches.get(1).branches) {
+					insertDebugCode(t.branches.get(1));
+				}
+			} else {
+				expression(tree.branches.get(1));
+			}
 			
+		} else if (tree.def.parent.node.equals("VariableDeclarator")) { // Identifier VariableDeclaratorRest
+
+			tree = tree.branches.get(1); // {'[' ']'} [ '=' VariableInitializer ]
+			if (tree.branches.get(1).node.length() > 0) {
+				insertDebugCode(tree.branches.get(1).branches.get(1)); // VariableInitializer
+			}
+
 		} else if (tree.def.parent.node.equals("BlockStatement")) {
 
 			if (tree.branches.get(0) != null) { // LocalVariableDeclarationStatement
-				
+				tree = tree.branches.get(0); // { VariableModifier } Type VariableDeclarators ';'
+				tree = tree.branches.get(2); // VariableDeclarator { ',' VariableDeclarator }
+				insertDebugCode(tree.branches.get(0));
+				for (Tree t: tree.branches.get(1).branches) {
+					insertDebugCode(t.branches.get(1));
+				}
 			} else if (tree.branches.get(1) != null) { // ClassOrInterfaceDeclaration
 				insertDebugCode(tree.branches.get(1));
 			} else { // [Identifier ':'] Statement
-				tree = tree.branches.get(2).branches.get(1);
-				/*
-				 * Statement: (
-				 * Block |
-				 * ';' |
-				 * Identifier ':' Statement |
-				 * StatementExpression ';' |
-				 * 'if' ParExpression Statement ['else' Statement] |
-				 * 'assert' Expression [':' Expression] ';' |
-				 * 'switch' ParExpression '{' SwitchBlockStatementGroups '}' |
-				 * 'while' ParExpression Statement |
-				 * 'do' Statement 'while' ParExpression ';' |
-				 * 'for' '(' ForControl ')' Statement |
-				 * 'break' [Identifier] ';' |
-				 * 'continue' [Identifier] ';' |
-				 * 'return' [Expression] ';' |
-				 * 'throw' Expression ';' |
-				 * 'synchronized' ParExpression Block |
-				 * 'try' Block ( [Catches] Finally | Catches ) |
-				 * 'try' ResourceSpecification Block [Catches] [Finally])
-				 */
-				if (tree.branches.get(0) != null) { // Block
-					insertDebugCode(tree.branches.get(0));
-				} else if (tree.branches.get(1) != null) { // ';'
-					return;
-				} else if (tree.branches.get(2) != null) { // Identifier ':' Statement
-					insertDebugCode(tree.branches.get(2));
-				} else if (tree.branches.get(3) != null) { // StatementExpression ';'
-					expression(tree.branches.get(0)); // StatementExpression: Expression
-				} else if (tree.branches.get(4) != null) { // 'if' ParExpression Statement ['else' Statement]
-					tree = tree.branches.get(4);
-					insertDebugCode(tree.branches.get(1).branches.get(1)); // ParExpression: '(' Expression ')'
-					insertDebugCode(tree.branches.get(2));
-					if (tree.branches.get(3).node.length() > 0) {
-						insertDebugCode(tree.branches.get(3).branches.get(1));
-					}
-				} else if (tree.branches.get(5) != null) { // 'assert' Expression [':' Expression] ';'
-					tree = tree.branches.get(5);
-					insertDebugCode(tree.branches.get(1));
-					if (tree.branches.get(2).node.length() > 0) {
-						insertDebugCode(tree.branches.get(2).branches.get(1));
-					}
-				} else if (tree.branches.get(6) != null) { // 'switch' ParExpression '{' SwitchBlockStatementGroups '}'
-					tree = tree.branches.get(6);
-					insertDebugCode(tree.branches.get(1));
-					tree = tree.branches.get(3); // { SwitchBlockStatementGroup }
-					for (Tree t: tree.branches) { // SwitchLabels BlockStatements
-						insertDebugCode(t.branches.get(1));
-					}
-				} else if (tree.branches.get(7) != null) { // 'while' ParExpression Statement
-					// TODO BLOCK
-					tree = tree.branches.get(7);
-					insertDebugCode(tree.branches.get(1).branches.get(1));
-					insertDebugCode(tree.branches.get(2));
-				} else if (tree.branches.get(8) != null) { // 'do' Statement 'while' ParExpression ';'
-					// TODO BLOCK
-					tree = tree.branches.get(8);
-					insertDebugCode(tree.branches.get(1));
+				insertDebugCode(tree.branches.get(2).branches.get(1));
+			}
+			
+		} else if (tree.def.parent.node.equals("Statement")) {
+			
+			/*
+			 * Statement: (
+			 * Block |
+			 * ';' |
+			 * Identifier ':' Statement |
+			 * StatementExpression ';' |
+			 * 'if' ParExpression Statement ['else' Statement] |
+			 * 'assert' Expression [':' Expression] ';' |
+			 * 'switch' ParExpression '{' SwitchBlockStatementGroups '}' |
+			 * 'while' ParExpression Statement |
+			 * 'do' Statement 'while' ParExpression ';' |
+			 * 'for' '(' ForControl ')' Statement |
+			 * 'break' [Identifier] ';' |
+			 * 'continue' [Identifier] ';' |
+			 * 'return' [Expression] ';' |
+			 * 'throw' Expression ';' |
+			 * 'synchronized' ParExpression Block |
+			 * 'try' Block ( [Catches] Finally | Catches ) |
+			 * 'try' ResourceSpecification Block [Catches] [Finally])
+			 */
+			if (tree.branches.get(0) != null) { // Block
+				insertDebugCode(tree.branches.get(0));
+			} else if (tree.branches.get(1) != null) { // ';'
+				return;
+			} else if (tree.branches.get(2) != null) { // Identifier ':' Statement
+				insertDebugCode(tree.branches.get(2));
+			} else if (tree.branches.get(3) != null) { // StatementExpression ';'
+				expression(tree.branches.get(3).branches.get(0)); // StatementExpression: Expression
+			} else if (tree.branches.get(4) != null) { // 'if' ParExpression Statement ['else' Statement]
+				tree = tree.branches.get(4);
+				expression(tree.branches.get(1).branches.get(1)); // ParExpression: '(' Expression ')'
+				insertDebugCode(tree.branches.get(2));
+				if (tree.branches.get(3).node.length() > 0) {
 					insertDebugCode(tree.branches.get(3).branches.get(1));
-				} else if (tree.branches.get(9) != null) { // 'for' '(' ForControl ')' Statement
-					// TODO BLOCK
-					tree = tree.branches.get(9); // ForVarControl | [ForInit] ';' [Expression] ';' [ForUpdate]
-					if (tree.branches.get(0) != null) {
-						tree = tree.branches.get(0); // {VariableModifier} Type VariableDeclaratorId ForVarControlRest
-						tree = tree.branches.get(3); // ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate] | ':' Expression
-						if (tree.branches.get(0) != null) {
-							tree = tree.branches.get(0); // ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate]
-							if (tree.branches.get(0).node.length() > 0) { // [ '=' VariableInitializer ] { ',' VariableDeclarator }
-								insertDebugCode(tree.branches.get(0).branches.get(1));
+				}
+			} else if (tree.branches.get(5) != null) { // 'assert' Expression [':' Expression] ';'
+				tree = tree.branches.get(5);
+				expression(tree.branches.get(1));
+				if (tree.branches.get(2).node.length() > 0) {
+					expression(tree.branches.get(2).branches.get(1));
+				}
+			} else if (tree.branches.get(6) != null) { // 'switch' ParExpression '{' SwitchBlockStatementGroups '}'
+				tree = tree.branches.get(6);
+				expression(tree.branches.get(1));
+				tree = tree.branches.get(3); // { SwitchBlockStatementGroup }
+				for (Tree t: tree.branches) { // SwitchLabels BlockStatements
+					insertDebugCode(t.branches.get(1));
+				}
+			} else if (tree.branches.get(7) != null) { // 'while' ParExpression Statement
+				cycle(tree);				
+				tree = tree.branches.get(7);
+				expression(tree.branches.get(1).branches.get(1));
+				insertDebugCode(tree.branches.get(2));
+			} else if (tree.branches.get(8) != null) { // 'do' Statement 'while' ParExpression ';'
+				cycle(tree);				
+				tree = tree.branches.get(8);
+				insertDebugCode(tree.branches.get(1));
+				expression(tree.branches.get(3).branches.get(1));
+			} else if (tree.branches.get(9) != null) { // 'for' '(' ForControl ')' Statement
+				cycle(tree);				
+				tree = tree.branches.get(9);
+				Tree w = tree.branches.get(2); // ForVarControl | [ForInit] ';' [Expression] ';' [ForUpdate]
+				if (w.branches.get(0) != null) {
+					Tree u = w.branches.get(0); // {VariableModifier} Type VariableDeclaratorId ForVarControlRest
+					u = u.branches.get(3); // ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate] | ':' Expression
+					if (u.branches.get(0) != null) { // ForVariableDeclaratorsRest ';' [Expression] ';' [ForUpdate]
+						u = u.branches.get(0);
+						Tree v = u.branches.get(0); // [ '=' VariableInitializer ] { ',' VariableDeclarator } 
+						if (v.branches.get(0).node.length() > 0) {
+							insertDebugCode(v.branches.get(0).branches.get(1));
+						}
+						for (Tree t: v.branches.get(1).branches) {
+							insertDebugCode(t.branches.get(1)); // VariableDeclarator
+						}
+						if (u.branches.get(2).node.length() > 0) {
+							expression(u.branches.get(2));
+						}
+						if (u.branches.get(4) != null) {
+							u = u.branches.get(4); // StatementExpression { ',' StatementExpression }
+							expression(u.branches.get(0));
+							for (Tree t: u.branches.get(1).branches) {
+								expression(t.branches.get(1));
 							}
-						} else {
-							tree = tree.branches.get(1); // ':' Expression
-							// TODO
 						}
 					} else {
-						tree = tree.branches.get(1); // [ForInit] ';' [Expression] ';' [ForUpdate]
-						// TODO
+						u = tree.branches.get(1); // ':' Expression
+						expression(u.branches.get(1));
 					}
-				} else if (tree.branches.get(10) != null) { // 'break' [Identifier] ';'
-					tree.prefix = step(tree) + "; ";
-				} else if (tree.branches.get(11) != null) { // 'continue' [Identifier] ';'
-					tree.prefix = step(tree) + "; ";
-				} else if (tree.branches.get(12) != null) { // 'return' [Expression] ';'
-					tree = tree.branches.get(12);
-					if (tree.branches.get(1).node.length() > 0) {
-						insertDebugCode(tree.branches.get(1));
-					} else {
-						tree.prefix = step(tree) + "; ";
-					}
-				} else if (tree.branches.get(13) != null) { // 'throw' Expression ';'
-					tree = tree.branches.get(13);
-					if (tree.branches.get(1).node.length() > 0) {
-						insertDebugCode(tree.branches.get(1));
-					}
-				} else if (tree.branches.get(14) != null) { // 'synchronized' ParExpression Block
-					tree = tree.branches.get(14);
-					insertDebugCode(tree.branches.get(1).branches.get(1)); // ParExpression: '(' Expression ')'
-					insertDebugCode(tree.branches.get(2));
-				} else if (tree.branches.get(15) != null) { // 'try' Block ( [Catches] Finally | Catches )
-					tree = tree.branches.get(15);
-					insertDebugCode(tree.branches.get(1));
-					tree = tree.branches.get(2);
-					Tree catches;
-					if (tree.branches.get(0) != null) { // [Catches] Finally
-						catches = tree.branches.get(0).branches.get(0);
-					} else { // CatchClause { CatchClause }
-						catches = tree.branches.get(1);
-					}
-					if (catches.node.length() > 0) { // CatchClause { CatchClause }
-						// CatchClause: 'catch' '(' {VariableModifier} CatchType Identifier ')' Block
-						insertDebugCode(tree.branches.get(0).branches.get(6));
-						for (Tree t: tree.branches.get(1).branches) {
-							insertDebugCode(t.branches.get(6));
+				} else {
+					Tree u = tree.branches.get(1); // [ForInit] ';' [Expression] ';' [ForUpdate]
+					if (u.branches.get(0).node.length() > 0) {
+						Tree v = u.branches.get(0); // StatementExpression { ',' StatementExpression }
+						expression(v.branches.get(0));
+						for (Tree t: v.branches.get(1).branches) {
+							expression(t.branches.get(1));
 						}
 					}
-					if (tree.branches.get(0) != null) { // [Catches] Finally
-						insertDebugCode(tree.branches.get(0).branches.get(1).branches.get(1)); // Block
+					if (u.branches.get(1).node.length() > 0) {
+						expression(u.branches.get(1));
 					}
-				} else { // 'try' ResourceSpecification Block [Catches] [Finally])
-					tree = tree.branches.get(16);
-					Tree res = tree.branches.get(1); // '(' Resources [';'] ')'
-					res = res.branches.get(1); // Resource { ';' Resource }
-					// Resource: {VariableModifier} ReferenceType VariableDeclaratorId '=' Expression
-					insertDebugCode(res.branches.get(0).branches.get(4));
-					for (Tree t: res.branches.get(1).branches) {
-						insertDebugCode(t.branches.get(1).branches.get(4));
-					}
-					insertDebugCode(tree.branches.get(2)); // Block
-					if (tree.branches.get(3).node.length() > 0) { // [Catches]
-						Tree catches = tree.branches.get(3); // CatchClause { CatchClause }
-						// CatchClause: 'catch' '(' {VariableModifier} CatchType Identifier ')' Block
-						insertDebugCode(catches.branches.get(0).branches.get(6));
-						for (Tree t: catches.branches.get(1).branches) {
-							insertDebugCode(t.branches.get(6));
+					if (u.branches.get(2).node.length() > 0) {
+						Tree v = u.branches.get(0); // StatementExpression { ',' StatementExpression }
+						expression(v.branches.get(0));
+						for (Tree t: v.branches.get(1).branches) {
+							expression(t.branches.get(1));
 						}
 					}
-					if (tree.branches.get(4).node.length() > 0) { // [Finally]
-						insertDebugCode(tree.branches.get(4).branches.get(1)); // Block
+				}
+				insertDebugCode(tree.branches.get(4));
+			} else if (tree.branches.get(10) != null) { // 'break' [Identifier] ';'
+				tree.prefix = step(tree) + "; ";
+			} else if (tree.branches.get(11) != null) { // 'continue' [Identifier] ';'
+				tree.prefix = step(tree) + "; ";
+			} else if (tree.branches.get(12) != null) { // 'return' [Expression] ';'
+				tree = tree.branches.get(12);
+				if (tree.branches.get(1).node.length() > 0) {
+					expression(tree.branches.get(1));
+				} else {
+					tree.prefix = step(tree) + "; ";
+				}
+			} else if (tree.branches.get(13) != null) { // 'throw' Expression ';'
+				tree = tree.branches.get(13);
+				if (tree.branches.get(1).node.length() > 0) {
+					expression(tree.branches.get(1));
+				}
+			} else if (tree.branches.get(14) != null) { // 'synchronized' ParExpression Block
+				tree = tree.branches.get(14);
+				expression(tree.branches.get(1).branches.get(1)); // ParExpression: '(' Expression ')'
+				insertDebugCode(tree.branches.get(2));
+			} else if (tree.branches.get(15) != null) { // 'try' Block ( [Catches] Finally | Catches )
+				tree = tree.branches.get(15);
+				insertDebugCode(tree.branches.get(1));
+				tree = tree.branches.get(2);
+				Tree catches;
+				if (tree.branches.get(0) != null) { // [Catches] Finally
+					catches = tree.branches.get(0).branches.get(0);
+				} else { // CatchClause { CatchClause }
+					catches = tree.branches.get(1);
+				}
+				if (catches.node.length() > 0) { // CatchClause { CatchClause }
+					// CatchClause: 'catch' '(' {VariableModifier} CatchType Identifier ')' Block
+					insertDebugCode(tree.branches.get(0).branches.get(6));
+					for (Tree t: tree.branches.get(1).branches) {
+						insertDebugCode(t.branches.get(6));
 					}
+				}
+				if (tree.branches.get(0) != null) { // [Catches] Finally
+					insertDebugCode(tree.branches.get(0).branches.get(1).branches.get(1)); // Block
+				}
+			} else { // 'try' ResourceSpecification Block [Catches] [Finally])
+				tree = tree.branches.get(16);
+				Tree res = tree.branches.get(1); // '(' Resources [';'] ')'
+				res = res.branches.get(1); // Resource { ';' Resource }
+				// Resource: {VariableModifier} ReferenceType VariableDeclaratorId '=' Expression
+				expression(res.branches.get(0).branches.get(4));
+				for (Tree t: res.branches.get(1).branches) {
+					expression(t.branches.get(1).branches.get(4));
+				}
+				insertDebugCode(tree.branches.get(2)); // Block
+				if (tree.branches.get(3).node.length() > 0) { // [Catches]
+					Tree catches = tree.branches.get(3); // CatchClause { CatchClause }
+					// CatchClause: 'catch' '(' {VariableModifier} CatchType Identifier ')' Block
+					insertDebugCode(catches.branches.get(0).branches.get(6));
+					for (Tree t: catches.branches.get(1).branches) {
+						insertDebugCode(t.branches.get(6));
+					}
+				}
+				if (tree.branches.get(4).node.length() > 0) { // [Finally]
+					insertDebugCode(tree.branches.get(4).branches.get(1)); // Block
 				}
 			}
 			
@@ -358,8 +420,8 @@ public class DebugCodeInserter {
 		if (args != null && args.branches.get(1).node.length() > 0) { // '(' [FormalParameterDecls] ')'
 			visitArgs(args.branches.get(1), scopeVar, buff); // FormalParameterDecls
 		}
-		getAppropriateBranch(block).suffix = enterScope(block, scopeVar, buff.toString());
-		block.branches.get(2).prefix = endScope(exceptions, block, scopeVar);
+		getAppropriateBranch(block).suffix = enterScope(block.branches.get(0), scopeVar, buff.toString(), true); // Block: '{' BlockStatements '}'
+		block.branches.get(2).prefix = endScope(exceptions, block.branches.get(2), scopeVar);
 	}
 	
 	/**
@@ -527,13 +589,32 @@ public class DebugCodeInserter {
 		buff.append(");");
 	}
 	
-	private String enterScope(Tree block, String scopeVar, String args) { // Block: '{' BlockStatements '}'
-		return " long " + scopeVar + " = " + bridge() + ".scope(" +
-			ann.annotation(Type.scope, block.branches.get(0).begin, block.branches.get(0).end) + "l);" + args + " try {";
+	/**
+	 * Generates code which will be executed when entering a method body or a loop.
+	 * @param highlightedNode the tree node which denotes code in the beginning of which
+	 *   debug code will be generated.
+	 * @param scopeVar the name of the scope variable.
+	 * @param args code that reports the variables in case we enter a method or a constructor.
+	 * @param declareScopeVar 'true' if we enter a method or constructor (the scope variable
+	 *   will be declared); 'false' if we enter a loop (the scope variable has already been
+	 *   declared).
+	 * @return method/constructor/loop entry debug code.
+	 */
+	private String enterScope(Tree highlightedNode, String scopeVar, String args, boolean declareScopeVar) {
+		return (declareScopeVar ? " long " : "") + scopeVar + " = " + bridge() + ".scope(" +
+			ann.annotation(Type.scope, highlightedNode.begin, highlightedNode.end) + "l);" + args + " try { ";
 	}
-	
-	private String endScope(Tree exceptions, Tree block, String scopeVar) { // Block: '{' BlockStatements '}'
-		long annotation = ann.annotation(Type.endscope, block.branches.get(2).begin, block.branches.get(2).end);
+
+	/**
+	 * Generates code which will be executed when leaving a method body or a loop.
+	 * @param exceptions the exception list thrown by the method.
+	 * @param hightLightedNodeblock the tree node which denotes code in the end of which
+	 *   debug code will be generated.
+	 * @param scopeVar the name of the scope variable.
+	 * @return method/constructor/loop leaving debug code.
+	 */
+	private String endScope(Tree exceptions, Tree hightLightedNodeblock, String scopeVar) { // Block: '{' BlockStatements '}'
+		long annotation = ann.annotation(Type.endscope, hightLightedNodeblock.begin, hightLightedNodeblock.end);
 		StringBuffer buff = new StringBuffer();
 		boolean hasRuntimeExceptionInList = false;
 		boolean hasErrorInList = false;
@@ -545,23 +626,23 @@ public class DebugCodeInserter {
 			if (!hasErrorInList && (exc.equals("Error") || exc.equals("java.lang.Error") || exc.equals("throwable") || exc.equals("Throwable") || exc.equals("java.lang.Throwable"))) {
 				hasErrorInList = true;
 			}
-			exception(block, exc, scopeVar, buff);
+			exception(hightLightedNodeblock, exc, scopeVar, buff);
 			for (Tree t: exceptions.branches.get(1).branches) {
-				exception(block, t.branches.get(1).node, scopeVar, buff);
+				exception(hightLightedNodeblock, t.branches.get(1).node, scopeVar, buff);
 			}
 		}
 		if (!hasRuntimeExceptionInList) {
-			exception(block, "RuntimeException", scopeVar, buff);
+			exception(hightLightedNodeblock, "RuntimeException", scopeVar, buff);
 		}
 		if (!hasErrorInList) {
-			exception(block, "Error", scopeVar, buff);
+			exception(hightLightedNodeblock, "Error", scopeVar, buff);
 		}
-		return "}" + buff + " finally { " + bridge() + ".endScope(" + annotation + "l, " + scopeVar + "); } ";
+		return "}" + buff + " finally { " + scopeVar + " = " + bridge() + ".endScope(" + annotation + "l, " + scopeVar + "); } ";
 	}
 	
-	private void exception(Tree block, String exception, String scopeVar, StringBuffer buff) {
+	private void exception(Tree t, String exception, String scopeVar, StringBuffer buff) {
 		String exceptionVar = bridgeName + '_' + bridgeName + "_ex";
-		long annotation = ann.annotation(Type.exception, block.branches.get(2).begin, block.branches.get(2).end);
+		long annotation = ann.annotation(Type.exception, t.begin, t.end);
 		buff.append(" catch (");
 		buff.append(exception);
 		buff.append(' ');
@@ -589,6 +670,11 @@ public class DebugCodeInserter {
 	
 	private String step(Tree t) {
 		return bridge() + ".step(" + ann.annotation(Type.step, t.begin, t.end) + ", " + scopeVar() + ')';
+	}
+
+	private void cycle(Tree t) {
+		t.prefix = enterScope(t, scopeVar(), "", false);
+		t.suffix = ' ' + endScope(null, t, scopeVar());
 	}
 	
 }

@@ -201,6 +201,17 @@ public class Annotations {
 	private boolean shutdown;
 	
 	/**
+	 * This map is used to give IDs to identifiers, so that the generated code
+	 * will inspect variables and class fields by their IDs, not by their name,
+	 * which will improve performance. The identifiers' IDs are global, i.e.
+	 * all identifiers with the same name will have the same ID.
+	 */
+	private HashMap<String, Integer> identifierMap = new HashMap<String, Integer>();
+
+	/** A mapping from int to identifier ID. */
+	private List<String> identifiers = new ArrayList<String>();
+	
+	/**
 	 * Constructs an annotation pool.
 	 * @param gen the code generator which needs annotations.
 	 * @param path the path where annotations are going to be stored.
@@ -548,14 +559,6 @@ public class Annotations {
 	}
 	
 	/**
-	 * This map is used to give IDs to identifiers, so that the generated code
-	 * will inspect variables and class fields by their IDs, not by their name,
-	 * which will improve performance. The identifiers' IDs are global, i.e.
-	 * all identifiers with the same name will have the same ID.
-	 */
-	private HashMap<String, Integer> identifierMap = new HashMap<String, Integer>();
-	
-	/**
 	 * Gives the corresponding ID of the specified identifier. If the identifier
 	 * is not in the identifierMap yet then it will be given a new ID.
 	 * @param identifier a variable/field name.
@@ -565,6 +568,7 @@ public class Annotations {
 	public int getIdentifierId(String identifier) {
 		if (identifierMap.get(identifier) == null) {
 			identifierMap.put(identifier, identifierMap.size());
+			identifiers.add(identifier);
 		}
 		return identifierMap.get(identifier);
 	}
@@ -623,8 +627,8 @@ public class Annotations {
 				
 				// Write the identifier names to identifiers.txt.
 				pr = new PrintWriter(new File(new File(path), IDENTIFIER_NAMES));
-				for (int i = 0; i < identifierMap.size(); i++) {
-					pr.println(identifierMap.get(i));
+				for (int i = 0; i < identifiers.size(); i++) {
+					pr.println(identifiers.get(i));
 				}
 				pr.close();
 				
