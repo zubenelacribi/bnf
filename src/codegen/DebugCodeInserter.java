@@ -371,8 +371,89 @@ public class DebugCodeInserter {
 	 * Inserts debug code in an expression.
 	 * @param t the expression tree.
 	 */
-	private void expression(Tree t) {
+	private void expression(Tree t) { // Expression: Expression1 [ AssignmentOperator Expression ]
+		if (t.branches.get(1).node.length() > 0) {
+			lvalue(t.branches.get(0));
+			expression(t.branches.get(1).branches.get(1));
+		} else {
+			rvalue(t.branches.get(0));
+		}
+	}
+	
+	/**
+	 * Inserts debug code in an lvalue (left hand side assignment operator value).
+	 * Lvalues can be local variables, object fields and array dereference expressions.<br/>
+	 * In the case of a field then an annotation for an object and corresponding
+	 * field name is generated. In the case of an array two annotations are going to
+	 * be generated -- one for the array object and another for the index to which
+	 * a value is going to be assigned.
+	 * @param t the expression tree
+	 */
+	private void lvalue(Tree t) { // Expression1: Expression2 [ Expression1Rest ]
+		assert t.branches.get(1).node.length() == 0; // We don't need Expression1Rest because
+		  // it is the triple operator, so this can't be an lvalue.
+		t = t.branches.get(0); // Expression2: Expression3 [ Expression2Rest ]
+		assert t.branches.get(1).node.length() == 0; // We don't need Expression2Rest because
+			// it is 'instacneof' or an infix operator, so this can't be an lvalue.
+		t = t.branches.get(0);
+		// Expression3: (
+		// PrefixOp Expression3 |
+		// '(' ( Type | Expression ) ')' Expression3 |
+		// Primary { Selector } { PostfixOp })
 		
+		assert t.branches.size() == 3 && t.branches.get(2) != null; // Only this can be an lvalue.
+		t = t.branches.get(2); // Primary { Selector } { PostfixOp }
+		assert t.branches.get(2).branches.size() == 0; // No postfix operators allowed for lvalues.
+		primary(t.branches.get(0));
+		for (Tree u: t.branches.get(1).branches) {
+			selector(u);
+		}
+	}
+	
+	/**
+	 * Inserts debug code in a primary expression.
+	 * @param t the expression tree
+	 */
+	private void primary(Tree t) {
+		// Primary: (
+		// Literal |
+		// ParExpression |
+		// 'this' [Arguments] |
+		// 'super' SuperSuffix |
+		// 'new' Creator |
+		// NonWildcardTypeArguments ( ExplicitGenericInvocationSuffix | 'this' Arguments ) |
+		// Type '.' 'class' |
+		// Identifier { '.' Identifier } [IdentifierSuffix] |
+		// 'void' '.' 'class')
+		
+		// TODO
+	}
+	
+	/**
+	 * Inserts debug code in a selector.
+	 * @param t the expression tree.
+	 */
+	private void selector(Tree t) {
+		// Selector: (
+		// '.' Identifier [Arguments] |
+		// '.' ExplicitGenericInvocation |
+		// '.' 'this' |
+		// '.' 'super' SuperSuffix |
+		// '.' 'new' [NonWildcardTypeArguments] |
+		// '[' Expression ']' |
+		// InnerCreator)
+		
+		// TODO
+	}
+	
+	/**
+	 * Inserts debug code in an rvalue (right hand side assignment operator value).
+	 * RValues can be any expression. For simplicity purposes lvalues and rvalues
+	 * are separated, so that rvalues can't contain assignment operators.
+	 * @param t the expression tree.
+	 */
+	private void rvalue(Tree t) { // Expression1: Expression2 [ Expression1Rest ]
+		// TODO
 	}
 
 	/**
