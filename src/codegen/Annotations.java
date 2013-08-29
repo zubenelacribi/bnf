@@ -51,9 +51,10 @@ public class Annotations {
 	 * 'arg' an argument passed to a method; 'expr' is the value of an
 	 * expression; 'obj' and 'field' are used to mark the changing of a value of
 	 * a field in a given object; 'arr' and 'index' are used to mark
-	 * the changing of a value of an array element.
+	 * the changing of a value of an array element; the 'value' annotation
+	 * is used in capturing values of parts of exrpessions.
 	 */
-	public enum Type { step, expr, scope, endscope, var, arg, obj, field, arr, index, exception }
+	public enum Type { step, expr, scope, endscope, var, arg, obj, field, arr, index, exception, value }
 	
 	/** The number of bits in the low part of the long representing the annotation which are reserved for annotation type. */
 	public static final int RESERVED_BITS = 4;

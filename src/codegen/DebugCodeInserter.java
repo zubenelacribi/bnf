@@ -1,7 +1,6 @@
 package codegen;
 
 import codegen.Annotations.Type;
-import bnf.NodeType;
 import bnf.ParseTree;
 import bnf.Tree;
 
@@ -426,7 +425,128 @@ public class DebugCodeInserter {
 		// Identifier { '.' Identifier } [IdentifierSuffix] |
 		// 'void' '.' 'class')
 		
-		// TODO
+		if (t.branches.get(0) != null) { // Literal
+			// Do nothing. We are not interested in constants.
+			
+		} else if (t.branches.get(1) != null) { // ParExpression
+			
+			t = t.branches.get(1); // '(' Expression ')'
+			expression(t.branches.get(1));
+			
+		} else if (t.branches.get(2) != null) { // 'this' [Arguments]
+			
+			t = t.branches.get(2).branches.get(1); // [Arguments]
+			arguments(t);
+			
+		} else if (t.branches.get(3) != null) { // 'super' SuperSuffix
+			
+			t = t.branches.get(3);
+			Tree s = t.branches.get(1); // Arguments | '.' Identifier [Arguments]
+			if (s.branches.get(0) != null) {
+				arguments(s.branches.get(0));
+			} else {
+				arguments(s.branches.get(1).branches.get(2));
+				value(t);
+			}
+			
+		} else if (t.branches.get(4) != null) { // 'new' Creator
+			
+			t = t.branches.get(4).branches.get(1); // NonWildcardTypeArguments CreatedName ClassCreatorRest | CreatedName ( ClassCreatorRest | ArrayCreatorRest )
+			if (t.branches.get(0) != null) {
+				Tree s = t.branches.get(0).branches.get(2); // Arguments [ClassBody]
+				arguments(s.branches.get(0));
+				if (s.branches.get(1).node.length() > 0) {
+					insertDebugCode(s.branches.get(1));
+				}
+			} else {
+				Tree s = t.branches.get(1); // CreatedName ( ClassCreatorRest | ArrayCreatorRest )
+				s = s.branches.get(1);
+				if (s.branches.get(0) != null) {
+					s = s.branches.get(0); // Arguments [ClassBody]
+					arguments(s.branches.get(0));
+					if (s.branches.get(1).node.length() > 0) {
+						insertDebugCode(s.branches.get(1));
+					}
+				} else {
+					s = s.branches.get(1); // '[' ( ']' {'[' ']'} ArrayInitializer | Expression ']' {'[' Expression ']'} {'[' ']'} )
+					s = s.branches.get(1);
+					if (s.branches.get(0) != null) { // ']' {'[' ']'} ArrayInitializer
+						s = s.branches.get(0).branches.get(2); // '{' [ VariableInitializer { ',' VariableInitializer } [','] ] '}'
+						s = s.branches.get(1);
+						if (s.node.length() > 0) {
+							insertDebugCode(s.branches.get(0));
+							for (Tree u: s.branches.get(1).branches) {
+								insertDebugCode(u.branches.get(1));
+							}
+						}
+					} else {
+						s = s.branches.get(1); // Expression ']' {'[' Expression ']'} {'[' ']'}
+						expression(s.branches.get(0));
+						for (Tree u: s.branches.get(2).branches) {
+							expression(u.branches.get(1));
+						}
+					}
+				}
+			}
+			value(t);
+			
+		} else if (t.branches.get(5) != null) { // NonWildcardTypeArguments ( ExplicitGenericInvocationSuffix | 'this' Arguments )
+
+			t = t.branches.get(5).branches.get(1);
+			if (t.branches.get(0) != null) {
+				Tree s = t.branches.get(0); // 'super' SuperSuffix | Identifier Arguments
+				if (s.branches.get(0) != null) {
+					s = s.branches.get(0).branches.get(1); // Arguments | '.' Identifier [Arguments]
+					if (s.branches.get(0) != null) {
+						arguments(s.branches.get(0));
+					} else {
+						arguments(s.branches.get(1).branches.get(2));
+					}
+				}
+			} else {
+				Tree s = t.branches.get(1); // 'this' Arguments
+				arguments(s.branches.get(1));
+			}
+			
+		} else if (t.branches.get(6) != null) { // Type '.' 'class'
+			
+			value(t.branches.get(6));
+			
+		} else if (t.branches.get(7) != null) { // Identifier { '.' Identifier } [IdentifierSuffix]
+			
+			// TODO
+			
+		} else { // 'void' '.' 'class'
+			value(t.branches.get(8));
+		}
+	}
+	
+	/**
+	 * Traverses arguments to a function call.
+	 * @param t the arguments tree.
+	 */
+	private void arguments(Tree t) { // Arguments: '(' [ Expression { ',' Expression } ] ')'
+		if (t.node.length() == 0) {
+			return; // No arguments.
+		}
+		t = t.branches.get(1);
+		if (t.node.length() > 0) { // Expression { ',' Expression }
+			expression(t.branches.get(0));
+			for (Tree u: t.branches.get(1).branches) {
+				expression(u.branches.get(1));
+			}
+		}
+	}
+	
+	/**
+	 * Surrounds an expression with value inspecting code.
+	 * @param t the expression tree.
+	 */
+	private void value(Tree t) {
+		t.prefix = bridge() + '.' + bridgeName + '(' +
+				ann.annotation(Type.value, t.begin, t.end) + ", " +
+				scopeVar() + ", ";
+		t.suffix = ")";
 	}
 	
 	/**
